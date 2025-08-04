@@ -129,6 +129,7 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="outputs/fire_severity_
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     m.save(output_path)
     print(f"Generated Leaflet map: {output_path}")
+    return output_path
 
 
 def main():
