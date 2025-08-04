@@ -1,0 +1,21 @@
+# Core dependencies for fire severity mapping pipeline
+numpy>=1.21.0
+pandas>=1.3.0
+geopandas>=0.10.0
+rasterio>=1.2.0
+folium>=0.12.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# Earth Engine (for future use)
+earthengine-api>=0.1.0
+
+# Web visualization
+jinja2>=3.0.0
+
+# Development and testing
+pytest>=6.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+black>=21.0.0
+flake8>=3.9.0 

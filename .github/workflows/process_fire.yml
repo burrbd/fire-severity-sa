@@ -1,0 +1,47 @@
+name: Process Fire Severity Map
+
+on:
+  workflow_dispatch:
+    inputs:
+      aoi_file:
+        description: 'Path to AOI GeoJSON file'
+        required: true
+        default: 'data/dummy_aoi.geojson'
+        type: string
+
+jobs:
+  process-aoi:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Process AOI and generate fire severity map
+      run: |
+        python src/process_aoi.py ${{ github.event.inputs.aoi_file }}
+        
+    - name: Upload outputs as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: fire-severity-outputs
+        path: |
+          outputs/
+        retention-days: 30
+        
+    - name: Comment on workflow run
+      run: |
+        echo "✅ Fire severity map processing completed!"
+        echo "📊 Generated raster: outputs/fire_severity.tif"
+        echo "🗺️ Generated map: outputs/fire_severity_map.html"
+        echo "📦 Outputs uploaded as artifacts" 
