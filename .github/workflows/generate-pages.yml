@@ -43,7 +43,19 @@ jobs:
     needs: test
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout main branch
+      uses: actions/checkout@v4
+      with:
+        ref: main
+    
+    - name: Update gh-pages branch to match main
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git push origin main:gh-pages --force
+    
+    - name: Checkout gh-pages branch
+      uses: actions/checkout@v4
       with:
         ref: gh-pages
         token: ${{ secrets.GITHUB_TOKEN }}
