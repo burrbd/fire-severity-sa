@@ -166,7 +166,7 @@ outputs/
 *.tif
 *.tiff
 *.html
-!web/*.html
+!docs/*.html
 *.geojson
 
 # macOS
