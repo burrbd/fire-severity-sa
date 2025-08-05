@@ -10,12 +10,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   generate-and-deploy:
@@ -41,14 +35,22 @@ jobs:
       run: |
         python src/process_aoi.py data/dummy_aoi.geojson
         
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+    - name: Checkout gh-pages branch
+      uses: actions/checkout@v4
       with:
-        path: './docs'
+        ref: gh-pages
+        token: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4 
+    - name: Copy generated files
+      run: |
+        mkdir -p docs/outputs
+        cp ../docs/outputs/fire_severity_map.html docs/outputs/ || echo "No map file to copy"
+        cp ../docs/outputs/fire_severity.tif docs/outputs/ || echo "No raster file to copy"
+        
+    - name: Commit and push to gh-pages
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/outputs/
+        git diff --quiet && git diff --staged --quiet || git commit -m "auto: update fire severity analysis artifacts"
+        git push origin gh-pages 
