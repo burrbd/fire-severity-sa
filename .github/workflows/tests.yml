@@ -30,11 +30,10 @@ jobs:
       run: |
         python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
         
-    # Temporarily disabled due to Codecov rate limit for private repos
-    # - name: Upload coverage to Codecov
-    #   uses: codecov/codecov-action@v3
-    #   with:
-    #     file: ./coverage.xml
-    #     flags: unittests
-    #     name: codecov-umbrella
-    #     fail_ci_if_error: true 
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true 
