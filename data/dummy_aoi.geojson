@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dummy Fire Scar - SA Test Area",
+        "fire_date": "2023-12-01",
+        "description": "Test area of interest for steel rod pipeline development"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [138.5, -35.0],
+            [138.7, -35.0],
+            [138.7, -35.2],
+            [138.5, -35.2],
+            [138.5, -35.0]
+          ]
+        ]
+      }
+    }
+  ]
+} 

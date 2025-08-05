@@ -171,6 +171,7 @@ outputs/
 !docs/*.html
 !docs/outputs/*.html
 *.geojson
+!data/*.geojson
 
 # macOS
 .DS_Store
