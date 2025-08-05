@@ -43,22 +43,18 @@ jobs:
     needs: test
     
     steps:
-    - name: Checkout main branch
-      uses: actions/checkout@v4
-      with:
-        ref: main
-    
-    - name: Update gh-pages branch to match main
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git push origin main:gh-pages --force
-    
     - name: Checkout gh-pages branch
       uses: actions/checkout@v4
       with:
         ref: gh-pages
         token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Sync with main branch
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git fetch origin main
+        git reset --hard origin/main
     
     - name: Set up Python
       uses: actions/setup-python@v4
