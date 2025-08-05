@@ -26,7 +26,7 @@ def load_aoi(aoi_path):
         sys.exit(1)
 
 
-def generate_dnbr_raster(aoi_gdf, output_path="outputs/fire_severity.tif"):
+def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
     """Generate a dNBR (differenced Normalized Burn Ratio) raster based on the AOI bounds.
     
     Currently generates dummy data for the steel thread implementation.
@@ -74,7 +74,7 @@ def generate_dnbr_raster(aoi_gdf, output_path="outputs/fire_severity.tif"):
     return output_path
 
 
-def create_leaflet_map(aoi_gdf, raster_path, output_path="outputs/fire_severity_map.html"):
+def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_severity_map.html"):
     """Create a Leaflet map showing the AOI and the generated raster."""
     
     # Calculate center of AOI
@@ -89,8 +89,10 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="outputs/fire_severity_
     )
     
     # Add the AOI boundary
+    # Drop non-geometry columns to avoid serialization issues
+    aoi_geometry = aoi_gdf[['geometry']].copy()
     folium.GeoJson(
-        aoi_gdf,
+        aoi_geometry,
         name='Area of Interest',
         style_function=lambda x: {
             'fillColor': 'transparent',

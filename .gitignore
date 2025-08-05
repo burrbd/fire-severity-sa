@@ -165,8 +165,11 @@ cython_debug/
 outputs/
 *.tif
 *.tiff
+!docs/outputs/*.tif
+!docs/outputs/*.tiff
 *.html
 !docs/*.html
+!docs/outputs/*.html
 *.geojson
 
 # macOS
