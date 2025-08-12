@@ -20,7 +20,9 @@ pip install pre-commit
 echo "Installing pre-commit hooks..."
 pre-commit install
 
-# Make the pre-commit hook executable
+# Copy the tracked pre-commit hook to .git/hooks
+echo "Copying pre-commit hook..."
+cp hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 
 echo "✅ Pre-commit hooks installed successfully!"

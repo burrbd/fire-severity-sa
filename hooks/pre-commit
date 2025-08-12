@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Pre-commit hook to run tests
+# This script runs pytest with coverage before each commit
+
+# Skip tests on gh-pages branch (where GitHub Actions generates outputs)
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "detached")
+if [[ "$current_branch" == "gh-pages" ]]; then
+    echo "Skipping pre-commit tests on gh-pages branch"
+    exit 0
+fi
+
+echo "Running pre-commit tests..."
+
+# Change to the repository root (go up from .git/hooks to repository root)
+cd "$(dirname "$(dirname "$(dirname "$0")")")"
+
+# Check if we're in a virtual environment
+if [[ "$VIRTUAL_ENV" == "" ]]; then
+    echo "Warning: Not in a virtual environment. Tests may fail due to missing dependencies."
+fi
+
+# Activate virtual environment if it exists
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+fi
+
+# Run pytest with coverage
+python -m pytest tests/ -v --cov=src --cov-branch --cov-report=term-missing
+
+# Check the exit code
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed. Commit aborted."
+    echo "Please fix the failing tests before committing."
+    exit 1
+fi
+
+echo "✅ All tests passed!"
+exit 0 
