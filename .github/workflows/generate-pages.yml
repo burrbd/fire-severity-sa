@@ -68,7 +68,7 @@ jobs:
         
     - name: Generate fire severity analysis
       run: |
-        python src/process_aoi.py data/dummy_aoi.geojson
+        python src/process_aoi.py data/fire.geojson
         
     - name: Commit generated files
       run: |
