@@ -158,6 +158,5 @@ def main():
     print(f"🗺️  Map output: {map_path}")
 
 
-if __name__ == "__main__":
-    main() # Updated Tue Aug  5 10:37:51 ACST 2025
+# Script entry point moved to __main__.py
 # Test trigger Tue Aug  5 10:58:23 ACST 2025

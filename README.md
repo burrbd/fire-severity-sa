@@ -59,7 +59,7 @@ pip install -r requirements.txt
 ./setup-pre-commit.sh
 
 # Run the steel rod pipeline
-python src/process_aoi.py data/fire.geojson
+python __main__.py data/fire.geojson
 ```
 
 ### View Results
@@ -82,17 +82,17 @@ python -m pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Test Coverage
+- **100% code coverage** required for all source files
 - Tests cover all functions, edge cases, and error conditions
 - Integration tests verify the complete pipeline
 - Mock tests ensure isolated unit testing
-- Coverage reports are generated but not enforced
 
 ### Pre-commit Hooks
 This project includes pre-commit hooks that automatically run tests before each commit:
 - Tests must pass before commits are allowed
 - Ensures code quality and prevents broken commits
 - Runs the same test suite as CI/CD pipeline
-- Coverage reports are generated but not enforced
+- **100% code coverage required** - commits will fail if coverage drops below 100%
 
 To set up pre-commit hooks:
 ```bash
