@@ -56,7 +56,7 @@ cd fire-severity-sa
 pip install -r requirements.txt
 
 # Run the steel rod pipeline
-python src/process_aoi.py data/dummy_aoi.geojson
+python src/process_aoi.py data/fire.geojson
 ```
 
 ### View Results
@@ -89,7 +89,7 @@ python -m pytest tests/ --cov=src --cov-report=html
 ```
 fire-severity-sa/
 ├── data/                   # Input data (AOI files, etc.)
-│   └── dummy_aoi.geojson  # Test area of interest
+│   └── fire.geojson  # Real fire area of interest
 ├── src/                    # Source code
 │   └── process_aoi.py
 ├── outputs/               # Generated outputs
