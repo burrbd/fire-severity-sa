@@ -14,6 +14,9 @@ from rasterio.transform import from_bounds
 import geopandas as gpd
 import folium
 from pathlib import Path
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.colors import LinearSegmentedColormap
 
 
 def load_aoi(aoi_path):
@@ -74,6 +77,35 @@ def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
     return output_path
 
 
+def create_raster_overlay(raster_path, output_path="docs/outputs/fire_severity_overlay.png"):
+    """Convert the GeoTIFF to a PNG overlay for the map."""
+    
+    # Read the raster
+    with rasterio.open(raster_path) as src:
+        data = src.read(1)
+        bounds = src.bounds
+    
+    # Create a custom colormap for fire severity
+    colors = ['green', 'yellow', 'orange', 'red']
+    n_bins = 4
+    cmap = LinearSegmentedColormap.from_list('fire_severity', colors, N=n_bins)
+    
+    # Normalize data to 0-1 range for colormap
+    data_norm = np.clip(data, 0, 4) / 4.0
+    
+    # Create the image
+    fig, ax = plt.subplots(figsize=(10, 10))
+    im = ax.imshow(data_norm, cmap=cmap, vmin=0, vmax=1)
+    ax.axis('off')
+    
+    # Save as PNG with transparent background
+    plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True, dpi=150)
+    plt.close()
+    
+    print(f"Generated raster overlay: {output_path}")
+    return output_path, bounds
+
+
 def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_severity_map.html"):
     """Create a Leaflet map showing the AOI and the generated raster."""
     
@@ -88,40 +120,47 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
         tiles='OpenStreetMap'
     )
     
-    # Add the AOI boundary
+    # Generate raster overlay
+    overlay_path, raster_bounds = create_raster_overlay(raster_path)
+    
+    # Add the raster as an image overlay
+    folium.raster_layers.ImageOverlay(
+        name='Fire Severity (dNBR)',
+        image=overlay_path,
+        bounds=[[raster_bounds.bottom, raster_bounds.left], 
+                [raster_bounds.top, raster_bounds.right]],
+        opacity=0.7,
+        popup='Fire Severity Raster (dNBR)'
+    ).add_to(m)
+    
+    # Add the AOI boundary on top
     # Drop non-geometry columns to avoid serialization issues
     aoi_geometry = aoi_gdf[['geometry']].copy()
     folium.GeoJson(
         aoi_geometry,
-        name='Area of Interest',
+        name='Fire Boundary',
         style_function=lambda x: {
             'fillColor': 'transparent',
             'color': 'red',
-            'weight': 2
-        }
+            'weight': 3,
+            'opacity': 0.8
+        },
+        popup='Fire Boundary'
     ).add_to(m)
     
-    # Add a placeholder for the raster (since we can't directly overlay GeoTIFF in Folium)
-    # For now, we'll add a colored rectangle representing the raster bounds
-    bounds = aoi_gdf.total_bounds
-    folium.Rectangle(
-        bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
-        color='orange',
-        fill=True,
-        fillColor='orange',
-        fillOpacity=0.3,
-        popup='Dummy Fire Severity Raster (Orange overlay)'
-    ).add_to(m)
+    # Add layer control
+    folium.LayerControl().add_to(m)
     
     # Add legend
     legend_html = '''
     <div style="position: fixed; 
-                bottom: 50px; left: 50px; width: 200px; height: 90px; 
+                bottom: 50px; left: 50px; width: 200px; height: 120px; 
                 background-color: white; border:2px solid grey; z-index:9999; 
                 font-size:14px; padding: 10px">
     <p><b>Fire Severity Legend</b></p>
     <p><span style="color:green;">Green</span> - Low Severity (0-1)</p>
-    <p><span style="color:orange;">Orange</span> - Medium Severity (1-3)</p>
+    <p><span style="color:yellow;">Yellow</span> - Low-Medium (1-2)</p>
+    <p><span style="color:orange;">Orange</span> - Medium-High (2-3)</p>
     <p><span style="color:red;">Red</span> - High Severity (3-4)</p>
     </div>
     '''
