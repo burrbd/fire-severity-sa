@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd "$(dirname "$0")/.." && python -m pytest tests/ -v --cov=src --cov-branch --cov-report=term-missing'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: Run pytest with coverage 

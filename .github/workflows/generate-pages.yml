@@ -47,7 +47,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: gh-pages
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PAT_TOKEN }}
     
     - name: Sync with main branch
       run: |
@@ -76,4 +76,4 @@ jobs:
         git config --local user.name "GitHub Action"
         git add docs/outputs/
         git diff --quiet && git diff --staged --quiet || git commit -m "auto: regenerate fire severity analysis and map"
-        git push 
+        git push origin gh-pages 
