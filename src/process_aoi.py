@@ -189,8 +189,8 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
     # Generate the raster overlay image
     overlay_path, raster_bounds = create_raster_overlay_image(raster_path)
     
-    # Add the raster as an image overlay
-    folium.raster_layers.ImageOverlay(
+    # Add the raster as an image overlay using the full path for Folium
+    image_overlay = folium.raster_layers.ImageOverlay(
         name='Fire Severity (dNBR)',
         image=overlay_path,
         bounds=[[raster_bounds.bottom, raster_bounds.left], 
@@ -218,6 +218,25 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
     
     # Save the map
     m.save(output_path)
+    
+    # Post-process the HTML to replace base64 with relative path
+    with open(output_path, 'r') as f:
+        html_content = f.read()
+    
+    # Replace the base64 image with a relative path reference
+    import re
+    # Find the base64 image data and replace with relative path
+    relative_image_path = "outputs/fire_severity_overlay.png"
+    html_content = re.sub(
+        r'data:image/png;base64,[^"]*"',
+        f'"{relative_image_path}"',
+        html_content
+    )
+    
+    # Write the modified HTML back
+    with open(output_path, 'w') as f:
+        f.write(html_content)
+    
     print(f"Generated map with dNBR raster overlay: {output_path}")
     return output_path
 
