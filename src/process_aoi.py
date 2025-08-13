@@ -219,17 +219,23 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
     # Save the map
     m.save(output_path)
     
-    # Post-process the HTML to replace base64 with relative path
+    # Post-process the HTML to update the base64 image data
     with open(output_path, 'r') as f:
         html_content = f.read()
     
-    # Replace the base64 image with a relative path reference
+    # Convert the PNG to base64 and update the HTML
     import re
-    # Find the base64 image data and replace with relative path
-    relative_image_path = "outputs/fire_severity_overlay.png"
+    import base64
+    
+    # Read the PNG file and convert to base64
+    with open(overlay_path, 'rb') as img_file:
+        img_data = img_file.read()
+        img_base64 = base64.b64encode(img_data).decode('utf-8')
+    
+    # Replace the existing base64 image data with the new one
     html_content = re.sub(
-        r'data:image/png;base64,[^"]*"',
-        f'"{relative_image_path}"',
+        r'data:image/png;base64,[^"]*',
+        f'data:image/png;base64,{img_base64}',
         html_content
     )
     
