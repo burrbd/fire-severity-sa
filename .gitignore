@@ -162,15 +162,8 @@ cython_debug/
 #  *.iws
 
 # Project-specific
-*.tif
-*.tiff
-!docs/outputs/*.tif
-!docs/outputs/*.tiff
-*.html
-!docs/*.html
-!docs/outputs/*.html
-*.geojson
-!data/*.geojson
+# Exclude output files from main branch (gh-pages workflow will remove these rules)
+docs/outputs/*
 
 # macOS
 .DS_Store

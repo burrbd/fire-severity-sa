@@ -56,6 +56,14 @@ jobs:
         git fetch origin main
         git reset --hard origin/main
     
+    - name: Remove .gitignore rules for outputs (gh-pages only)
+      run: |
+        # Remove the line that excludes docs/outputs/ files
+        # This allows outputs to be committed on gh-pages branch
+        sed -i '/^docs\/outputs\/\*$/d' .gitignore
+        # Add a comment to indicate this is for gh-pages
+        echo "# gh-pages: outputs are allowed to be committed" >> .gitignore
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
