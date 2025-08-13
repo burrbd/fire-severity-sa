@@ -16,7 +16,6 @@ import folium
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from matplotlib.colors import LinearSegmentedColormap
 
 
 def load_aoi(aoi_path):
@@ -29,37 +28,66 @@ def load_aoi(aoi_path):
         sys.exit(1)
 
 
-def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
-    """Generate a dNBR (differenced Normalized Burn Ratio) raster based on the AOI bounds.
+def calculate_dnbr_values(aoi_gdf, width=50, height=50):
+    """Calculate dNBR values based on fire boundary position.
     
-    Currently generates dummy data for the steel thread implementation.
-    Future implementation will calculate actual dNBR from pre/post-fire satellite imagery.
+    This is a placeholder function that generates dummy dNBR values.
+    Replace this with actual dNBR calculation from pre/post-fire satellite imagery.
+    
+    Args:
+        aoi_gdf: GeoDataFrame containing the fire boundary
+        width: Raster width in pixels
+        height: Raster height in pixels
+    
+    Returns:
+        tuple: (dnbr_values, bounds) where dnbr_values is a 2D numpy array
     """
-    
-    # Get the bounds of the AOI (use actual fire boundary bounds for raster)
+    # Get the bounds of the AOI
     bounds = aoi_gdf.total_bounds  # [minx, miny, maxx, maxy]
     
-    # Create a dummy raster with some "fire severity" values
-    # For now, just create a simple pattern
-    width, height = 512, 512  # Increased resolution
-    
-    # Create dummy severity values (0-4 scale: 0=unburned, 4=high severity)
-    # Create simple uniform medium severity
-    x_coords = np.linspace(0, 1, width)
-    y_coords = np.linspace(0, 1, height)
+    # Create coordinate arrays for the raster
+    x_coords = np.linspace(bounds[0], bounds[2], width)
+    y_coords = np.linspace(bounds[1], bounds[3], height)
     X, Y = np.meshgrid(x_coords, y_coords)
     
-    # Create simple uniform medium severity (2.5) within the fire boundary area
-    center_x, center_y = 0.5, 0.5
-    distance = np.sqrt((X - center_x)**2 + (Y - center_y)**2)
+    # Create points from the coordinate grids
+    points = gpd.points_from_xy(X.flatten(), Y.flatten(), crs=aoi_gdf.crs)
+    points_gdf = gpd.GeoDataFrame(geometry=points)
     
-    # Simple: medium severity inside boundary, unburned outside
-    severity = np.where(distance < 0.3, 2.5, 0)  # Medium severity (2.5) inside, unburned (0) outside
+    # Check which points are inside the fire boundary
+    inside_fire = points_gdf.within(aoi_gdf.unary_union)
+    inside_fire = inside_fire.values.reshape(height, width)
+    
+    # Create dNBR values based on position
+    # Inside fire boundary: random positive values (burned areas)
+    # Outside fire boundary: random negative values (unburned areas)
+    dnbr_values = np.where(
+        inside_fire,
+        np.random.uniform(0.1, 2.0, (height, width)),  # Burned: 0.1 to 2.0
+        np.random.uniform(-2.0, -0.1, (height, width))  # Unburned: -2.0 to -0.1
+    )
+    
+    return dnbr_values, bounds
+
+
+def generate_dnbr_raster_tile(dnbr_values, bounds, aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
+    """Generate a GeoTIFF raster file from dNBR values.
+    
+    Args:
+        dnbr_values: 2D numpy array of dNBR values
+        bounds: Geographic bounds [minx, miny, maxx, maxy]
+        aoi_gdf: GeoDataFrame for CRS information
+        output_path: Output file path
+    
+    Returns:
+        str: Path to the generated raster file
+    """
+    height, width = dnbr_values.shape
     
     # Ensure output directory exists
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     
-    # Create the raster file with actual fire boundary bounds
+    # Create the raster file
     transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
     
     with rasterio.open(
@@ -69,107 +97,128 @@ def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
         height=height,
         width=width,
         count=1,
-        dtype=severity.dtype,
+        dtype='float32',  # Use float32 for efficiency
         crs=aoi_gdf.crs,
         transform=transform,
         nodata=-9999
     ) as dst:
-        dst.write(severity, 1)
+        dst.write(dnbr_values, 1)
     
-    print(f"Generated dNBR raster: {output_path}")
+    print(f"Generated dNBR raster tile: {output_path}")
     return output_path
 
 
-def create_raster_overlay(raster_path, output_path="docs/outputs/fire_severity_overlay.png"):
-    """Convert the GeoTIFF to a simple uniform overlay for the map."""
+def create_dnbr_colormap():
+    """Create a colormap for dNBR visualization.
     
-    # Read the raster
+    Returns:
+        matplotlib.colors.LinearSegmentedColormap: Colormap for dNBR values
+    """
+    # Create a custom colormap: green (unburned) to red (burned)
+    colors = ['green', 'yellow', 'orange', 'red']
+    return mcolors.LinearSegmentedColormap.from_list('fire_severity', colors)
+
+
+def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
+    """Generate a dNBR raster based on the AOI bounds.
+    
+    This function orchestrates the dNBR calculation and raster generation process.
+    
+    Args:
+        aoi_gdf: GeoDataFrame containing the fire boundary
+        output_path: Output file path
+    
+    Returns:
+        str: Path to the generated raster file
+    """
+    # Calculate dNBR values
+    dnbr_values, bounds = calculate_dnbr_values(aoi_gdf)
+    
+    # Generate the raster tile
+    raster_path = generate_dnbr_raster_tile(dnbr_values, bounds, aoi_gdf, output_path)
+    
+    return raster_path
+
+
+def create_raster_overlay_image(raster_path, output_path="docs/outputs/fire_severity_overlay.png"):
+    """Create a colored overlay image from the dNBR raster.
+    
+    Args:
+        raster_path: Path to the dNBR raster file
+        output_path: Output path for the overlay image
+    
+    Returns:
+        tuple: (overlay_path, bounds) for use in map creation
+    """
+    # Read the raster data and bounds
     with rasterio.open(raster_path) as src:
         data = src.read(1)
         bounds = src.bounds
     
-    # Create simple uniform overlay - just medium gray for burned areas
-    data_overlay = np.where(data > 0, 1, 0)  # 1 for burned (medium gray), 0 for unburned (transparent)
+    # Normalize data to 0-1 range for visualization
+    data_normalized = (data - data.min()) / (data.max() - data.min())
     
-    # Create the image with simple uniform gray
-    fig, ax = plt.subplots(figsize=(10, 10))
-    im = ax.imshow(data_overlay, cmap='gray', vmin=0, vmax=1, alpha=0.6)
-    ax.axis('off')
+    # Get the colormap
+    cmap = create_dnbr_colormap()
     
-    # Save as PNG with transparent background
+    # Apply colormap to normalized data
+    colored_data = cmap(data_normalized)
+    
+    # Save as PNG
+    plt.figure(figsize=(10, 10))
+    plt.imshow(colored_data)
+    plt.axis('off')
     plt.savefig(output_path, bbox_inches='tight', pad_inches=0, transparent=True, dpi=150)
     plt.close()
     
-    print(f"Generated raster overlay: {output_path}")
+    print(f"Generated raster overlay image: {output_path}")
     return output_path, bounds
 
 
 def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_severity_map.html"):
-    """Create a Leaflet map showing the AOI and the generated raster."""
+    """Create a Leaflet map showing the AOI boundary and dNBR raster overlay."""
     
-    # Calculate center of AOI
-    center_lat = aoi_gdf.geometry.centroid.y.mean()
-    center_lon = aoi_gdf.geometry.centroid.x.mean()
-    
-    # Create the map with monochrome styling and expanded view to show most of South Australia
+    # Create the map centered on South Australia
     m = folium.Map(
-        location=[-34.5, 138.5],  # Center on South Australia (Adelaide area)
-        zoom_start=6,  # Zoomed out to show most of South Australia
-        tiles='CartoDB positron',  # Monochrome tile layer
+        location=[-34.5, 138.5],  # Center on South Australia
+        zoom_start=6,
+        tiles='CartoDB positron',
         prefer_canvas=True
     )
     
-    # Generate raster overlay
-    overlay_path, raster_bounds = create_raster_overlay(raster_path)
+    # Generate the raster overlay image
+    overlay_path, raster_bounds = create_raster_overlay_image(raster_path)
     
-    # Add the raster as an image overlay with subtle styling
+    # Add the raster as an image overlay
     folium.raster_layers.ImageOverlay(
         name='Fire Severity (dNBR)',
         image=overlay_path,
         bounds=[[raster_bounds.bottom, raster_bounds.left], 
                 [raster_bounds.top, raster_bounds.right]],
-        opacity=0.5,
+        opacity=0.7,
         popup='Fire Severity Raster (dNBR)'
     ).add_to(m)
     
-    # Add the AOI boundary with clean styling
-    # Drop non-geometry columns to avoid serialization issues
+    # Add the AOI boundary with simple styling
     aoi_geometry = aoi_gdf[['geometry']].copy()
     folium.GeoJson(
         aoi_geometry,
         name='Fire Boundary',
         style_function=lambda x: {
             'fillColor': 'transparent',
-            'color': '#000000',  # Black border
+            'color': '#000000',
             'weight': 2,
             'opacity': 0.8
         },
         popup='Fire Boundary'
     ).add_to(m)
     
-    # Add layer control with custom styling
+    # Add layer control
     folium.LayerControl(position='topright').add_to(m)
     
-    # Add minimalist legend with three severity levels
-    legend_html = '''
-    <div style="position: fixed; 
-                bottom: 30px; right: 30px; width: 180px; height: 120px; 
-                background-color: rgba(255, 255, 255, 0.9); border: 1px solid #ccc; 
-                border-radius: 8px; z-index:9999; 
-                font-size: 12px; padding: 15px; color: #333; font-family: Arial, sans-serif;">
-    <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">Fire Severity</p>
-    <p style="margin: 2px 0; color: #333;">Dark Gray - High (3-4)</p>
-    <p style="margin: 2px 0; color: #333;">Medium Gray - Medium (2-3)</p>
-    <p style="margin: 2px 0; color: #333;">Light Gray - Low (1-2)</p>
-    <p style="margin: 2px 0; color: #333;">Transparent - Unburned (0)</p>
-    </div>
-    '''
-    m.get_root().html.add_child(folium.Element(legend_html))
-    
     # Save the map
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     m.save(output_path)
-    print(f"Generated Leaflet map: {output_path}")
+    print(f"Generated map with dNBR raster overlay: {output_path}")
     return output_path
 
 
