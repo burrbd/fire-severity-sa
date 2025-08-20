@@ -76,6 +76,8 @@ jobs:
         
     - name: Generate fire severity analysis
       run: |
+        # Create the outputs directory
+        mkdir -p docs/outputs/
         python __main__.py data/fire.geojson
         
     - name: Commit generated files

@@ -150,6 +150,11 @@ def create_raster_overlay_image(raster_path, output_path="docs/outputs/fire_seve
     Returns:
         tuple: (overlay_path, bounds) for use in map creation
     """
+    # Ensure output directory exists
+    import os
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)
+    
     # Read the raster data and bounds
     with rasterio.open(raster_path) as src:
         data = src.read(1)
@@ -186,8 +191,14 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
         prefer_canvas=True
     )
     
-    # Generate the raster overlay image
-    overlay_path, raster_bounds = create_raster_overlay_image(raster_path)
+    # Generate the raster overlay image in the same directory as the output
+    import os
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
+    overlay_filename = "fire_severity_overlay.png"
+    overlay_path = os.path.join(output_dir, overlay_filename)
+    
+    overlay_path, raster_bounds = create_raster_overlay_image(raster_path, overlay_path)
     
     # Add the raster as an image overlay using the full path for Folium
     image_overlay = folium.raster_layers.ImageOverlay(

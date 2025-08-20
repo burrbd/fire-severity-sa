@@ -317,23 +317,20 @@ class TestCreateLeafletMap:
         test_bounds = (0, 0, 1, 1)
         generate_dnbr_raster_tile(test_dnbr_values, test_bounds, self.test_gdf, raster_path)
         
-        # Create the output directory first since create_leaflet_map doesn't create directories
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        # Verify the output directory doesn't exist yet
+        assert not os.path.exists(os.path.dirname(output_path))
         
-        # Create a dummy overlay image file first
-        overlay_path = os.path.join(self.temp_dir, "test_overlay.png")
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(10, 10))
-        plt.imshow(np.random.random((50, 50)))
-        plt.axis('off')
-        plt.savefig(overlay_path, bbox_inches='tight', pad_inches=0, transparent=True, dpi=150)
-        plt.close()
-        
+        # Let the function create the directory and files
         result_path = create_leaflet_map(self.test_gdf, raster_path, output_path)
         
+        # Verify the function created everything as expected
         assert result_path == output_path
         assert os.path.exists(output_path)
         assert os.path.exists(os.path.dirname(output_path))
+        
+        # Verify the overlay image was also created in the same directory
+        overlay_path = os.path.join(os.path.dirname(output_path), "fire_severity_overlay.png")
+        assert os.path.exists(overlay_path)
 
 
 class TestMain:
