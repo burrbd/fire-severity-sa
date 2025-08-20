@@ -27,11 +27,16 @@ Deliver accessible fire severity data for researchers, agencies, and the public
 - [x] Add comprehensive test suite with 100% coverage
 
 #### 2. **Earth Engine Pipeline** *(actual processing pipeline)*
-- [ ] Load AOI into GEE as FeatureCollection
-- [ ] Select pre- and post-fire satellite images
-- [ ] Apply cloud masks
-- [ ] Calculate NBR and dNBR
-- [ ] Classify severity zones
+- [x] **GEE Job Management System** - ULID-based job tracking with S3
+- [x] **Manual GEE Job Submission** - GitHub Actions workflow for submitting jobs
+- [ ] **GEE Authentication & Setup** - Configure Earth Engine API access
+- [ ] **AOI Loading to GEE** - Convert GeoJSON to GEE FeatureCollection
+- [ ] **Mock dNBR Generation** - Use elevation data as proxy for dNBR
+- [ ] **GEE Export Pipeline** - Async job submission and status tracking
+- [ ] **Job Status Monitoring** - Check and download completed GEE jobs
+- [ ] **Real dNBR Calculation** - Replace mock with actual pre/post-fire analysis
+- [ ] **Cloud Masking & Image Selection** - Automated satellite image processing
+- [ ] **Severity Classification** - Classify dNBR values into severity zones
 
 #### 3. **Export and Visualisation**
 - [ ] Export processed raster (e.g. GeoTIFF)
@@ -39,6 +44,38 @@ Deliver accessible fire severity data for researchers, agencies, and the public
 
 #### 4. **Documentation**
 - [ ] Write Substack article explaining method and impact
+
+## 🔄 Current Workflow & Next Steps
+
+### **Current State (Phase 1: Manual GEE Integration)**
+We've implemented a **dual-branch deployment strategy** with manual GEE job submission:
+
+#### **Workflow Components:**
+1. **Job Tracking System** - ULID-based job IDs with S3 storage
+2. **Manual Job Submission** - GitHub Actions workflow for submitting GEE jobs
+3. **Noop Functions** - Placeholder implementations for testing workflow structure
+
+#### **Current Workflows:**
+- **`generate-pages.yml`** - Updates GitHub Pages with existing data (automatic)
+- **`submit-gee-job.yml`** - Manual GEE job submission (manual trigger)
+
+#### **Job Tracking:**
+- **ULIDs** for unique, sortable job identification
+- **S3 storage** for job metadata (avoiding Git conflicts)
+- **Audit trail** linking jobs to commit hashes and timestamps
+
+### **Next Steps (Phase 2: Real GEE Integration)**
+1. **Replace noop functions** with actual GEE API calls
+2. **Implement S3 job tracking** (currently noop)
+3. **Add GEE authentication** to GitHub Actions
+4. **Create mock dNBR** using elevation data
+5. **Test async job submission** and status monitoring
+
+### **Future Automation (Phase 3: Full Pipeline)**
+1. **Daily job status checking** workflow
+2. **Automatic job triggering** on new fire data
+3. **Real dNBR calculation** with satellite imagery
+4. **Automated map updates** when jobs complete
 
 ## 🚀 Quick Start
 
@@ -111,15 +148,21 @@ fire-severity-sa/
 ├── data/                   # Input data (AOI files, etc.)
 │   └── fire.geojson  # Real fire area of interest
 ├── src/                    # Source code
-│   └── process_aoi.py
-├── outputs/               # Generated outputs
-│   ├── fire_severity.tif  # Raster output
-│   └── fire_severity_map.html  # Leaflet visualization
+│   ├── process_aoi.py      # Main processing pipeline
+│   └── gee_jobs.py         # GEE job management and tracking
+├── docs/                   # Documentation and outputs
+│   ├── index.html         # Main GitHub Pages site
+│   └── outputs/           # Generated outputs (auto-committed to gh-pages)
+│       ├── fire_severity.tif  # Raster output
+│       ├── fire_severity_overlay.png  # Image overlay
+│       └── fire_severity_map.html  # Leaflet visualization
 ├── .github/               # GitHub Actions
 │   └── workflows/
-│       └── process_fire.yml
+│       ├── generate-pages.yml  # Main deployment workflow
+│       └── submit-gee-job.yml  # Manual GEE job submission
 ├── tests/                 # Test suite
-│   └── test_process_aoi.py
+│   ├── test_process_aoi.py
+│   └── test_gee_jobs.py   # GEE job management tests
 ├── requirements.txt       # Python dependencies
 ├── requirements.in        # Source dependencies for pip-tools
 ├── pytest.ini           # Test configuration

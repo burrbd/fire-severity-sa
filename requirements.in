@@ -10,6 +10,12 @@ seaborn>=0.11.0
 # Earth Engine (for future use)
 earthengine-api>=0.1.0
 
+# Job tracking and utilities
+python-ulid>=1.1.0
+typing-extensions>=4.0.0
+boto3>=1.26.0
+botocore>=1.29.0
+
 # Web visualization
 jinja2>=3.0.0
 

@@ -1,0 +1,82 @@
+name: Submit GEE dNBR Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      fire_id:
+        description: 'Fire ID to process'
+        required: true
+        default: 'fire_001'
+      force_reprocess:
+        description: 'Force reprocessing even if exists'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  submit-gee-job:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for commit hash
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Set up GEE authentication
+      run: |
+        python -c "from src.gee_jobs import setup_gee_authentication; setup_gee_authentication()"
+        
+    - name: Verify GEE connection
+      run: |
+        python -c "from src.gee_jobs import verify_gee_connection; verify_gee_connection()"
+        
+    - name: Load AOI and submit GEE job
+      run: |
+        python -c "
+        import geopandas as gpd
+        from src.gee_jobs import submit_gee_dnbr_job, update_job_tracking, get_current_commit_hash
+        
+        # Load the AOI
+        aoi_gdf = gpd.read_file('data/fire.geojson')
+        print(f'Loaded AOI with {len(aoi_gdf)} features')
+        
+        # Submit GEE job
+        fire_id = '${{ github.event.inputs.fire_id }}'
+        job_id = submit_gee_dnbr_job(fire_id, aoi_gdf)
+        
+        # Update job tracking
+        commit_hash = get_current_commit_hash()
+        update_job_tracking(job_id, fire_id, commit_hash)
+        
+        print(f'✅ GEE job submitted successfully!')
+        print(f'   Job ID: {job_id}')
+        print(f'   Fire ID: {fire_id}')
+        print(f'   Commit: {commit_hash}')
+        "
+        
+    - name: Set up AWS credentials (noop)
+      run: |
+        echo "🔗 AWS credentials setup (noop)"
+        echo "   Would configure AWS credentials for S3 access"
+        
+    - name: Show job summary
+      run: |
+        echo "🎯 GEE Job Summary:"
+        echo "   Fire ID: ${{ github.event.inputs.fire_id }}"
+        echo "   Force reprocess: ${{ github.event.inputs.force_reprocess }}"
+        echo "   Job tracking: S3 bucket fire-severity-sa-jobs"
+        echo ""
+        echo "📋 Next steps:"
+        echo "   1. Check job status with: python -c \"from src.gee_jobs import list_pending_jobs; print(list_pending_jobs())\""
+        echo "   2. Run check-gee-results workflow when ready to download" 
