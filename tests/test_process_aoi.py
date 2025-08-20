@@ -302,8 +302,9 @@ class TestCreateLeafletMap:
         
         result_path = create_leaflet_map(self.test_gdf, raster_path, output_path)
         
-        # Verify overlay function was called
-        mock_create_overlay.assert_called_once_with(raster_path)
+        # Verify overlay function was called with both raster_path and overlay_path
+        expected_overlay_path = os.path.join(os.path.dirname(output_path), "fire_severity_overlay.png")
+        mock_create_overlay.assert_called_once_with(raster_path, expected_overlay_path)
         assert result_path == output_path
         assert os.path.exists(output_path)
     
