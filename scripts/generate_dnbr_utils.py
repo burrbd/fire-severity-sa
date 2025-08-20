@@ -259,27 +259,30 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
 
 
 def main():
-    """Main function to process AOI and generate outputs."""
-    if len(sys.argv) != 2:
-        print("Usage: python process_aoi.py <aoi_geojson_path>")
+    """Main function to generate dNBR raster from AOI."""
+    if len(sys.argv) < 2:
+        print("Usage: python generate_dnbr.py <aoi_geojson_path> [method]")
+        print("Methods: dummy (default), gee")
         sys.exit(1)
     
     aoi_path = sys.argv[1]
-    print(f"Processing AOI: {aoi_path}")
+    method = sys.argv[2] if len(sys.argv) > 2 else "dummy"
+    
+    print(f"Generating dNBR for AOI: {aoi_path}")
+    print(f"Method: {method}")
     
     # Load the AOI
     aoi_gdf = load_aoi(aoi_path)
     print(f"Loaded AOI with {len(aoi_gdf)} features")
     
-    # Generate dNBR raster
-    raster_path = generate_dnbr_raster(aoi_gdf)
+    # Use polymorphic dNBR generation
+    from .dnbr_generator import generate_dnbr
+    raster_path = generate_dnbr(aoi_gdf, method=method)
     
-    # Create Leaflet map
-    map_path = create_leaflet_map(aoi_gdf, raster_path)
-    
-    print("✅ Steel thread pipeline completed successfully!")
+    print("✅ dNBR generation completed successfully!")
     print(f"📊 Raster output: {raster_path}")
-    print(f"🗺️  Map output: {map_path}")
+    if method == "dummy":
+        print("📋 Note: Generated dummy data. Use 'gee' method for real GEE processing.")
 
 
 # Script entry point moved to __main__.py

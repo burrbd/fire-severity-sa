@@ -19,7 +19,7 @@ Deliver accessible fire severity data for researchers, agencies, and the public
 
 #### 1. **Steel Rod Pipeline** *(end-to-end test harness)*
 - [x] Create dummy AOI GeoJSON
-- [x] Build `process_aoi.py` that takes AOI path
+- [x] Build `generate_dnbr.py` that takes AOI path
 - [x] Set up GitHub Action to invoke script with input
 - [x] Output placeholder raster
 - [x] Visualise in Leaflet
@@ -27,13 +27,15 @@ Deliver accessible fire severity data for researchers, agencies, and the public
 - [x] Add comprehensive test suite with 100% coverage
 
 #### 2. **Earth Engine Pipeline** *(actual processing pipeline)*
-- [x] **GEE Job Management System** - ULID-based job tracking with S3
-- [x] **Manual GEE Job Submission** - GitHub Actions workflow for submitting jobs
+- [x] **Analysis Architecture** - Polymorphic dNBR analysis system (dummy/GEE)
+- [x] **ULID-based Analysis IDs** - Unique, sortable analysis identification
+- [x] **Manual Analysis Submission** - GitHub Actions workflow for generating analyses
+- [x] **Dual-step Workflow** - Separate analysis generation and data download
 - [ ] **GEE Authentication & Setup** - Configure Earth Engine API access
 - [ ] **AOI Loading to GEE** - Convert GeoJSON to GEE FeatureCollection
 - [ ] **Mock dNBR Generation** - Use elevation data as proxy for dNBR
-- [ ] **GEE Export Pipeline** - Async job submission and status tracking
-- [ ] **Job Status Monitoring** - Check and download completed GEE jobs
+- [ ] **GEE Export Pipeline** - Async analysis submission and status tracking
+- [ ] **Analysis Status Monitoring** - Check and download completed GEE analyses
 - [ ] **Real dNBR Calculation** - Replace mock with actual pre/post-fire analysis
 - [ ] **Cloud Masking & Image Selection** - Automated satellite image processing
 - [ ] **Severity Classification** - Classify dNBR values into severity zones
@@ -47,35 +49,36 @@ Deliver accessible fire severity data for researchers, agencies, and the public
 
 ## 🔄 Current Workflow & Next Steps
 
-### **Current State (Phase 1: Manual GEE Integration)**
-We've implemented a **dual-branch deployment strategy** with manual GEE job submission:
+### **Current State (Phase 1: Analysis Architecture)**
+We've implemented a **polymorphic analysis system** with clean separation of concerns:
 
-#### **Workflow Components:**
-1. **Job Tracking System** - ULID-based job IDs with S3 storage
-2. **Manual Job Submission** - GitHub Actions workflow for submitting GEE jobs
-3. **Noop Functions** - Placeholder implementations for testing workflow structure
+#### **Architecture Components:**
+1. **Analysis Domain** - `dnbr/` module with analysis and generator classes
+2. **Scripts** - `scripts/` directory for GitHub Actions entry points
+3. **Dummy Implementation** - Pre-committed raster data for testing
+4. **GEE Implementation** - Placeholder for Google Earth Engine integration
 
 #### **Current Workflows:**
-- **`generate-pages.yml`** - Updates GitHub Pages with existing data (automatic)
-- **`submit-gee-job.yml`** - Manual GEE job submission (manual trigger)
+- **`generate-pages.yml`** - Updates GitHub Pages HTML shell (automatic)
+- **`generate-dnbr-job.yml`** - Manual analysis generation (manual trigger)
+- **`download-dnbr-job.yml`** - Manual data download and map regeneration (manual trigger)
 
-#### **Job Tracking:**
-- **ULIDs** for unique, sortable job identification
-- **S3 storage** for job metadata (avoiding Git conflicts)
-- **Audit trail** linking jobs to commit hashes and timestamps
+#### **Analysis Tracking:**
+- **ULIDs** for unique, sortable analysis identification
+- **Polymorphic design** supporting dummy and GEE implementations
+- **Two-step workflow** for async analysis processing
 
 ### **Next Steps (Phase 2: Real GEE Integration)**
-1. **Replace noop functions** with actual GEE API calls
-2. **Implement S3 job tracking** (currently noop)
-3. **Add GEE authentication** to GitHub Actions
-4. **Create mock dNBR** using elevation data
-5. **Test async job submission** and status monitoring
+1. **Implement GEE authentication** in GitHub Actions
+2. **Add real GEE processing** to `GEEAnalysis` and `GEEDNBRGenerator`
+3. **Create mock dNBR** using elevation data for testing
+4. **Test async analysis submission** and status monitoring
+5. **Implement cloud storage** for GEE results
 
 ### **Future Automation (Phase 3: Full Pipeline)**
-1. **Daily job status checking** workflow
-2. **Automatic job triggering** on new fire data
-3. **Real dNBR calculation** with satellite imagery
-4. **Automated map updates** when jobs complete
+1. **Automatic analysis triggering** on new fire data
+2. **Real dNBR calculation** with satellite imagery
+3. **Automated map updates** when analyses complete
 
 ## 🚀 Quick Start
 
@@ -95,8 +98,12 @@ pip install -r requirements.txt
 # Set up pre-commit hooks (optional but recommended)
 ./setup-pre-commit.sh
 
-# Run the steel rod pipeline
-python __main__.py data/fire.geojson
+# Run the dNBR analysis pipeline
+python __main__.py data/fire.geojson dummy
+
+# Or run specific scripts
+python scripts/generate_dnbr.py data/fire.geojson dummy
+python scripts/download_data.py --analysis-id <ANALYSIS_ID> --generator-type dummy
 ```
 
 ### View Results
@@ -109,13 +116,13 @@ This project includes comprehensive tests with 100% code coverage.
 ### Run Tests
 ```bash
 # Run all tests with coverage
-python -m pytest tests/ -v --cov=src --cov-report=term-missing
+python -m pytest tests/ -v --cov=dnbr --cov=scripts --cov-report=term-missing
 
 # Run specific test
-python -m pytest tests/test_process_aoi.py::TestGenerateDNBRRaster::test_generate_dnbr_raster_success -v
+python -m pytest tests/test_generate_dnbr.py::TestDNBRAnalysis::test_generate_dnbr_dummy -v
 
 # Generate HTML coverage report
-python -m pytest tests/ --cov=src --cov-report=html
+python -m pytest tests/ --cov=dnbr --cov=scripts --cov-report=html
 ```
 
 ### Test Coverage
@@ -145,24 +152,36 @@ git commit --no-verify -m "your message"
 
 ```
 fire-severity-sa/
-├── data/                   # Input data (AOI files, etc.)
-│   └── fire.geojson  # Real fire area of interest
-├── src/                    # Source code
-│   ├── process_aoi.py      # Main processing pipeline
-│   └── gee_jobs.py         # GEE job management and tracking
+├── dnbr/                   # dNBR analysis domain
+│   ├── __init__.py
+│   ├── analysis.py         # DNBRAnalysis ABC
+│   ├── dummy_analysis.py   # DummyAnalysis implementation
+│   ├── gee_analysis.py     # GEEAnalysis implementation
+│   ├── generators.py       # DNBRGenerator ABC + factories
+│   ├── dummy_generator.py  # DummyDNBRGenerator
+│   └── gee_generator.py    # GEEDNBRGenerator
+├── scripts/                # GitHub Actions entry points
+│   ├── generate_dnbr.py    # Main analysis generation script
+│   ├── download_data.py    # Download and map regeneration script
+│   ├── generate_map.py     # Map generation script
+│   ├── generate_dnbr_utils.py # Legacy raster generation utilities
+│   └── generate_leaflet_utils.py # Legacy map generation utilities
+├── data/                   # Input data
+│   ├── fire.geojson        # Real fire area of interest
+│   └── dummy/              # Pre-committed dummy data
+│       └── fire_severity.tif # Dummy raster for testing
 ├── docs/                   # Documentation and outputs
 │   ├── index.html         # Main GitHub Pages site
 │   └── outputs/           # Generated outputs (auto-committed to gh-pages)
-│       ├── fire_severity.tif  # Raster output
 │       ├── fire_severity_overlay.png  # Image overlay
 │       └── fire_severity_map.html  # Leaflet visualization
 ├── .github/               # GitHub Actions
 │   └── workflows/
-│       ├── generate-pages.yml  # Main deployment workflow
-│       └── submit-gee-job.yml  # Manual GEE job submission
+│       ├── generate-pages.yml      # Main deployment workflow
+│       ├── generate-dnbr-job.yml   # Manual analysis generation
+│       └── download-dnbr-job.yml   # Manual data download
 ├── tests/                 # Test suite
-│   ├── test_process_aoi.py
-│   └── test_gee_jobs.py   # GEE job management tests
+│   └── test_generate_dnbr.py # Analysis and generator tests
 ├── requirements.txt       # Python dependencies
 ├── requirements.in        # Source dependencies for pip-tools
 ├── pytest.ini           # Test configuration

@@ -1,4 +1,4 @@
-name: Generate Pages Content
+name: 🚀 CI/CD - Test & Deploy to GitHub Pages
 
 on:
   push:
@@ -75,11 +75,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Generate fire severity analysis
+    - name: Generate HTML shell (no dNBR generation)
       run: |
         # Create the outputs directory
         mkdir -p docs/outputs/
-        python __main__.py data/fire.geojson
+        # Note: dNBR generation is now handled by separate manual workflow
+        # This workflow only updates the HTML shell with existing data
+        echo "📋 HTML shell generation - using existing dNBR data"
+        echo "📋 To generate new dNBR data, run the manual 'Generate dNBR Data' workflow"
+        
+        # Generate Leaflet map from existing dNBR data
+        python scripts/generate_map.py data/fire.geojson
         
     - name: Commit generated files
       run: |

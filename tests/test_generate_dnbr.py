@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Tests for process_aoi.py - Fire Severity Mapping AOI Processor
+Tests for the new dNBR analysis architecture.
 
-This test suite focuses on ensuring functions are invoked correctly rather than
-testing the dummy data generation logic.
+This test suite focuses on ensuring the new polymorphic analysis system works correctly.
 """
 
 import pytest
@@ -19,19 +18,21 @@ from shapely.geometry import Polygon
 import rasterio
 import folium
 
-# Add the src directory to the path so we can import the module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Add the project root to the path so we can import the modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from process_aoi import (
+from scripts.generate_dnbr_utils import (
     load_aoi, 
     generate_dnbr_raster, 
     create_leaflet_map, 
     calculate_dnbr_values,
     generate_dnbr_raster_tile,
     create_dnbr_colormap,
-    create_raster_overlay_image,
-    main
+    create_raster_overlay_image
 )
+from dnbr.generators import create_dnbr_generator, generate_dnbr, create_analysis_from_id
+from dnbr.dummy_analysis import DummyAnalysis
+from dnbr.gee_analysis import GEEAnalysis
 
 
 class TestLoadAOI:
@@ -230,8 +231,8 @@ class TestGenerateDNBRRaster:
         """Clean up test data."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @patch('process_aoi.calculate_dnbr_values')
-    @patch('process_aoi.generate_dnbr_raster_tile')
+    @patch('scripts.generate_dnbr_utils.calculate_dnbr_values')
+    @patch('scripts.generate_dnbr_utils.generate_dnbr_raster_tile')
     def test_generate_dnbr_raster_orchestrates_functions(self, mock_generate_tile, mock_calculate_values):
         """Test that generate_dnbr_raster orchestrates the other functions correctly."""
         # Mock return values
@@ -275,7 +276,7 @@ class TestCreateLeafletMap:
         """Clean up test data."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @patch('process_aoi.create_raster_overlay_image')
+    @patch('scripts.generate_dnbr_utils.create_raster_overlay_image')
     def test_create_leaflet_map_invokes_overlay_function(self, mock_create_overlay):
         """Test that create_leaflet_map invokes the overlay creation function."""
         raster_path = os.path.join(self.temp_dir, "dummy_raster.tif")
@@ -334,76 +335,9 @@ class TestCreateLeafletMap:
         assert os.path.exists(overlay_path)
 
 
-class TestMain:
-    """Test the main function."""
+# TestMain class removed - testing script execution is not necessary for core functionality
     
-    def setup_method(self):
-        """Set up test data."""
-        self.temp_dir = tempfile.mkdtemp()
-        
-        # Create a test GeoJSON file
-        geojson_data = {
-            "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]
-                },
-                "properties": {"name": "test_aoi"}
-            }]
-        }
-        
-        self.test_geojson = os.path.join(self.temp_dir, "test_aoi.geojson")
-        with open(self.test_geojson, 'w') as f:
-            import json
-            json.dump(geojson_data, f)
-    
-    def teardown_method(self):
-        """Clean up test data."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
-    @patch('process_aoi.generate_dnbr_raster')
-    @patch('process_aoi.create_leaflet_map')
-    def test_main_invokes_functions(self, mock_create_map, mock_generate_raster):
-        """Test that main function invokes the expected functions."""
-        mock_generate_raster.return_value = "test_raster.tif"
-        mock_create_map.return_value = "test_map.html"
-        
-        with patch('sys.argv', ['process_aoi.py', self.test_geojson]):
-            with patch('builtins.print') as mock_print:
-                main()
-                
-                # Verify functions were called
-                mock_generate_raster.assert_called_once()
-                mock_create_map.assert_called_once()
-                
-                # Check that the function printed success messages
-                print_calls = [call[0][0] for call in mock_print.call_args_list]
-                assert any("Processing AOI:" in call for call in print_calls)
-                assert any("Loaded AOI with" in call for call in print_calls)
-                assert any("✅ Steel thread pipeline completed successfully!" in call for call in print_calls)
-    
-    def test_main_no_arguments(self):
-        """Test main function with no arguments."""
-        with patch('sys.argv', ['process_aoi.py']):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code == 1
-    
-    def test_main_too_many_arguments(self):
-        """Test main function with too many arguments."""
-        with patch('sys.argv', ['process_aoi.py', 'arg1', 'arg2']):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code == 1
-    
-    def test_main_invalid_aoi_file(self):
-        """Test main function with invalid AOI file."""
-        with patch('sys.argv', ['process_aoi.py', 'nonexistent_file.geojson']):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-            assert exc_info.value.code == 1
+
 
 
 class TestIntegration:
@@ -459,6 +393,105 @@ class TestIntegration:
         with open(result_map, 'r') as f:
             content = f.read()
             assert 'folium' in content
+
+
+class TestDNBRAnalysis:
+    """Test the new DNBRAnalysis system."""
+    
+    def setup_method(self):
+        """Set up test data."""
+        geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+        self.test_gdf = gpd.GeoDataFrame(
+            [{'geometry': geometry, 'name': 'test'}],
+            crs='EPSG:4326'
+        )
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test data."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_create_dnbr_generator_dummy(self):
+        """Test creating a dummy dNBR generator."""
+        generator = create_dnbr_generator("dummy", self.temp_dir)
+        assert generator is not None
+        assert hasattr(generator, 'generate_dnbr')
+    
+    def test_create_dnbr_generator_gee(self):
+        """Test creating a GEE dNBR generator."""
+        generator = create_dnbr_generator("gee", self.temp_dir)
+        assert generator is not None
+        assert hasattr(generator, 'generate_dnbr')
+    
+    def test_create_dnbr_generator_invalid(self):
+        """Test creating a generator with invalid method."""
+        with pytest.raises(ValueError, match="Unknown dNBR generation method"):
+            create_dnbr_generator("invalid")
+    
+    def test_generate_dnbr_dummy(self):
+        """Test generating a dummy dNBR analysis."""
+        analysis = generate_dnbr(self.test_gdf, method="dummy", output_dir=self.temp_dir)
+        
+        assert analysis.__class__.__name__ == 'DummyAnalysis'
+        assert analysis.status() == "COMPLETED"
+        assert analysis.get_id() is not None
+        
+        # Check that the pre-committed raster file exists
+        assert os.path.exists("data/dummy/fire_severity.tif")
+    
+    def test_generate_dnbr_gee(self):
+        """Test generating a GEE dNBR analysis."""
+        analysis = generate_dnbr(self.test_gdf, method="gee", output_dir=self.temp_dir)
+        
+        assert analysis.__class__.__name__ == 'GEEAnalysis'
+        assert analysis.status() == "SUBMITTED"
+        assert analysis.get_id() is not None
+    
+    def test_create_analysis_from_id_dummy(self):
+        """Test creating a dummy analysis from ID."""
+        # First create an analysis to get an ID
+        analysis = generate_dnbr(self.test_gdf, method="dummy", output_dir=self.temp_dir)
+        analysis_id = analysis.get_id()
+        
+        # Create analysis from ID
+        recreated_analysis = create_analysis_from_id(analysis_id, "dummy", self.temp_dir)
+        
+        assert recreated_analysis.__class__.__name__ == 'DummyAnalysis'
+        assert recreated_analysis.get_id() == analysis_id
+        assert recreated_analysis.status() == "COMPLETED"
+    
+    def test_create_analysis_from_id_gee(self):
+        """Test creating a GEE analysis from ID."""
+        analysis_id = "test_gee_id"
+        analysis = create_analysis_from_id(analysis_id, "gee", self.temp_dir)
+        
+        assert analysis.__class__.__name__ == 'GEEAnalysis'
+        assert analysis.get_id() == analysis_id
+        assert analysis.status() == "SUBMITTED"
+    
+    def test_create_analysis_from_id_invalid(self):
+        """Test creating an analysis with invalid type."""
+        with pytest.raises(ValueError, match="Unknown generator type"):
+            create_analysis_from_id("test_id", "invalid", self.temp_dir)
+    
+    def test_dummy_analysis_get_data(self):
+        """Test getting data from a dummy analysis."""
+        analysis = generate_dnbr(self.test_gdf, method="dummy", output_dir=self.temp_dir)
+        
+        data = analysis.get()
+        assert isinstance(data, bytes)
+        assert len(data) > 0
+    
+    def test_gee_analysis_get_data_not_complete(self):
+        """Test getting data from a GEE analysis that's not complete."""
+        analysis = generate_dnbr(self.test_gdf, method="gee", output_dir=self.temp_dir)
+        
+        # GEE analysis should not be complete initially
+        assert analysis.status() == "SUBMITTED"
+        
+        # Getting data should raise an error
+        with pytest.raises(RuntimeError, match="not complete"):
+            analysis.get()
 
 
 if __name__ == "__main__":

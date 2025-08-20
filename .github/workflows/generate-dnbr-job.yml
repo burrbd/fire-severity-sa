@@ -1,4 +1,4 @@
-name: Submit GEE dNBR Job
+name: 🔥 Manual - Generate dNBR Job
 
 on:
   workflow_dispatch:
@@ -41,29 +41,21 @@ jobs:
       run: |
         python -c "from src.gee_jobs import verify_gee_connection; verify_gee_connection()"
         
-    - name: Load AOI and submit GEE job
+    - name: Generate dNBR analysis
+      id: generate
       run: |
-        python -c "
-        import geopandas as gpd
-        from src.gee_jobs import submit_gee_dnbr_job, update_job_tracking, get_current_commit_hash
+        # Get generator type from GitHub variables
+        GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"
         
-        # Load the AOI
-        aoi_gdf = gpd.read_file('data/fire.geojson')
-        print(f'Loaded AOI with {len(aoi_gdf)} features')
+        # Generate dNBR analysis and capture analysis ID
+        analysis_id=$(python scripts/generate_dnbr.py data/fire.geojson $GENERATOR_TYPE | grep "Analysis ID:" | cut -d' ' -f3)
         
-        # Submit GEE job
-        fire_id = '${{ github.event.inputs.fire_id }}'
-        job_id = submit_gee_dnbr_job(fire_id, aoi_gdf)
+        # Output analysis ID for next action
+        echo "analysis_id=$analysis_id" >> $GITHUB_OUTPUT
+        echo "generator_type=$GENERATOR_TYPE" >> $GITHUB_OUTPUT
         
-        # Update job tracking
-        commit_hash = get_current_commit_hash()
-        update_job_tracking(job_id, fire_id, commit_hash)
-        
-        print(f'✅ GEE job submitted successfully!')
-        print(f'   Job ID: {job_id}')
-        print(f'   Fire ID: {fire_id}')
-        print(f'   Commit: {commit_hash}')
-        "
+        echo "✅ dNBR analysis generated: $analysis_id"
+        echo "🔧 Generator type: $GENERATOR_TYPE"
         
     - name: Set up AWS credentials (noop)
       run: |
