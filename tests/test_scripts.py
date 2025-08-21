@@ -129,20 +129,25 @@ class TestDownloadDNBRAnalysisScript:
     
     @patch('sys.argv', ['download_dnbr_analysis.py', '--analysis-id', 'test_id', '--generator-type', 'dummy'])
     @patch('scripts.download_dnbr_analysis.create_analysis_from_id')
-    def test_download_dnbr_analysis_success(self, mock_create_analysis):
+    @patch('scripts.generate_dnbr_utils.create_raster_overlay_image')
+    def test_download_dnbr_analysis_success(self, mock_create_overlay, mock_create_analysis):
         """Test successful data download."""
         # Mock the analysis object
         mock_analysis = MagicMock()
         mock_analysis.status.return_value = "COMPLETED"
         mock_analysis.get.return_value = b"dummy_data"
-        mock_analysis._result_path = "test/path/fire_severity.tif"
+        mock_analysis.get_id.return_value = "test_id"
         mock_create_analysis.return_value = mock_analysis
+        
+        # Mock the overlay creation
+        mock_create_overlay.return_value = ("test_overlay.png", (0, 0, 1, 1))
         
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             download_dnbr_analysis_main()
         
         # Verify the functions were called correctly
         mock_create_analysis.assert_called_once_with('test_id', 'dummy')
+        mock_create_overlay.assert_called_once()
     
     @patch('sys.argv', ['download_dnbr_analysis.py', '--analysis-id', 'test_id', '--generator-type', 'dummy'])
     @patch('scripts.download_dnbr_analysis.create_analysis_from_id')
@@ -178,18 +183,23 @@ class TestDownloadDNBRAnalysisScript:
     def test_download_dnbr_analysis_function(self):
         """Test the download_dnbr_data function directly."""
         with patch('scripts.download_dnbr_analysis.create_analysis_from_id') as mock_create_analysis:
-            # Mock the analysis object
-            mock_analysis = MagicMock()
-            mock_analysis.status.return_value = "COMPLETED"
-            mock_analysis.get.return_value = b"dummy_data"
-            mock_analysis._result_path = "test/path/fire_severity.tif"
-            mock_create_analysis.return_value = mock_analysis
-            
-            # Test the function
-            download_dnbr_data("test_id", "dummy", self.aoi_path)
-            
-            # Verify calls
-            mock_create_analysis.assert_called_once_with("test_id", "dummy")
+            with patch('scripts.generate_dnbr_utils.create_raster_overlay_image') as mock_create_overlay:
+                # Mock the analysis object
+                mock_analysis = MagicMock()
+                mock_analysis.status.return_value = "COMPLETED"
+                mock_analysis.get.return_value = b"dummy_data"
+                mock_analysis.get_id.return_value = "test_id"
+                mock_create_analysis.return_value = mock_analysis
+                
+                # Mock the overlay creation
+                mock_create_overlay.return_value = ("test_overlay.png", (0, 0, 1, 1))
+                
+                # Test the function
+                download_dnbr_data("test_id", "dummy", self.aoi_path)
+                
+                # Verify calls
+                mock_create_analysis.assert_called_once_with("test_id", "dummy")
+                mock_create_overlay.assert_called_once()
 
 
 class TestGenerateMapShellScript:

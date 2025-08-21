@@ -62,16 +62,31 @@ jobs:
         
         echo "🔧 Using generator type: $GENERATOR_TYPE"
         
-        # Download/copy data to ULID folder and regenerate map
+        # Download/copy data to ULID folder and generate overlay PNG
         python scripts/download_dnbr_analysis.py \
           --analysis-id ${{ inputs.analysis_id }} \
           --generator-type "$GENERATOR_TYPE" \
           --aoi-path data/fire.geojson
+        
+        echo "=== Checking what files were created ==="
+        ls -la docs/outputs/
+        if [ -d "docs/outputs/${{ inputs.analysis_id }}" ]; then
+          echo "=== ULID folder contents ==="
+          ls -la "docs/outputs/${{ inputs.analysis_id }}/"
+        else
+          echo "❌ ULID folder was not created!"
+        fi
     
     - name: Commit generated files
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        echo "=== Git status before add ==="
+        git status
+        echo "=== Adding files ==="
         git add docs/outputs/ .gitignore
+        echo "=== Git status after add ==="
+        git status
+        echo "=== Committing ==="
         git diff --quiet && git diff --staged --quiet || git commit -m "auto: download dNBR data for analysis ${{ inputs.analysis_id }}"
         git push origin gh-pages --force 

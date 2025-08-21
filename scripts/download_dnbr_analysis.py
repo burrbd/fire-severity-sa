@@ -44,22 +44,23 @@ def download_dnbr_data(analysis_id: str, generator_type: str, aoi_path: str = "d
             else:
                 print("☁️  GEE data downloaded from cloud storage")
             
-                            # Generate overlay PNG in the ULID folder
-                print("🎨 Generating overlay PNG in ULID folder...")
-                from scripts.generate_dnbr_utils import create_raster_overlay_image
-                import os
-                
-                # Get the ULID folder path
-                ulid_dir = os.path.dirname(analysis._result_path)
-                overlay_path = os.path.join(ulid_dir, "fire_severity_overlay.png")
-                
-                # Generate the overlay image (only if raster file exists)
-                if os.path.exists(analysis._result_path):
-                    create_raster_overlay_image(analysis._result_path, overlay_path)
-                    print(f"✅ Overlay PNG generated: {overlay_path}")
-                else:
-                    print(f"⚠️  Raster file not found: {analysis._result_path}")
-                    print("📁 Skipping overlay PNG generation")
+                                        # Create ULID folder and save the raster data
+            import os
+            ulid_dir = os.path.join("docs/outputs", analysis.get_id())
+            os.makedirs(ulid_dir, exist_ok=True)
+            
+            raster_path = os.path.join(ulid_dir, "fire_severity.tif")
+            with open(raster_path, 'wb') as f:
+                f.write(data)
+            print(f"✅ Raster data saved to: {raster_path}")
+            
+            # Generate overlay PNG in the ULID folder
+            print("🎨 Generating overlay PNG in ULID folder...")
+            from scripts.generate_dnbr_utils import create_raster_overlay_image
+            
+            overlay_path = os.path.join(ulid_dir, "fire_severity_overlay.png")
+            create_raster_overlay_image(raster_path, overlay_path)
+            print(f"✅ Overlay PNG generated: {overlay_path}")
             
             print("📁 Data downloaded successfully")
             print(f"💡 To generate map, run the 'Generate Map Shell' workflow with analysis ID: {analysis_id}")
