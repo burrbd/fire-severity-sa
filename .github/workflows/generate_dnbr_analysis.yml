@@ -2,16 +2,6 @@ name: 🔥 Manual - Generate dNBR Analysis
 
 on:
   workflow_dispatch:
-    inputs:
-      fire_id:
-        description: 'Fire ID to process'
-        required: true
-        default: 'fire_001'
-      force_reprocess:
-        description: 'Force reprocessing even if exists'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   generate-dnbr-analysis:
@@ -53,8 +43,6 @@ jobs:
     - name: Show analysis summary
       run: |
         echo "🎯 dNBR Analysis Summary:"
-        echo "   Fire ID: ${{ github.event.inputs.fire_id }}"
-        echo "   Force reprocess: ${{ github.event.inputs.force_reprocess }}"
         echo "   Analysis ID: ${{ steps.generate.outputs.analysis_id }}"
         echo "   Generator type: ${{ steps.generate.outputs.generator_type }}"
         echo ""
