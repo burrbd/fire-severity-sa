@@ -20,12 +20,10 @@ jobs:
         ref: gh-pages
         token: ${{ secrets.PAT_TOKEN }}
     
-    - name: Sync with main branch
+    - name: Configure git
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git fetch origin main
-        git reset --hard origin/main
     
     - name: Remove .gitignore rules for outputs (gh-pages only)
       run: |
