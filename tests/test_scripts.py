@@ -129,8 +129,7 @@ class TestDownloadDNBRAnalysisScript:
     
     @patch('sys.argv', ['download_dnbr_analysis.py', '--analysis-id', 'test_id', '--generator-type', 'dummy'])
     @patch('scripts.download_dnbr_analysis.create_analysis_from_id')
-    @patch('scripts.download_dnbr_analysis.generate_leaflet_map_standalone')
-    def test_download_dnbr_analysis_success(self, mock_generate_map, mock_create_analysis):
+    def test_download_dnbr_analysis_success(self, mock_create_analysis):
         """Test successful data download."""
         # Mock the analysis object
         mock_analysis = MagicMock()
@@ -139,15 +138,11 @@ class TestDownloadDNBRAnalysisScript:
         mock_analysis._result_path = "test/path/fire_severity.tif"
         mock_create_analysis.return_value = mock_analysis
         
-        # Mock map generation
-        mock_generate_map.return_value = "test_map.html"
-        
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             download_dnbr_analysis_main()
         
         # Verify the functions were called correctly
         mock_create_analysis.assert_called_once_with('test_id', 'dummy')
-        mock_generate_map.assert_called_once_with('data/fire.geojson', raster_path='test/path/fire_severity.tif')
     
     @patch('sys.argv', ['download_dnbr_analysis.py', '--analysis-id', 'test_id', '--generator-type', 'dummy'])
     @patch('scripts.download_dnbr_analysis.create_analysis_from_id')
@@ -183,23 +178,18 @@ class TestDownloadDNBRAnalysisScript:
     def test_download_dnbr_analysis_function(self):
         """Test the download_dnbr_data function directly."""
         with patch('scripts.download_dnbr_analysis.create_analysis_from_id') as mock_create_analysis:
-            with patch('scripts.download_dnbr_analysis.generate_leaflet_map_standalone') as mock_generate_map:
-                # Mock the analysis object
-                mock_analysis = MagicMock()
-                mock_analysis.status.return_value = "COMPLETED"
-                mock_analysis.get.return_value = b"dummy_data"
-                mock_analysis._result_path = "test/path/fire_severity.tif"
-                mock_create_analysis.return_value = mock_analysis
-                
-                # Mock map generation
-                mock_generate_map.return_value = "test_map.html"
-                
-                # Test the function
-                download_dnbr_data("test_id", "dummy", self.aoi_path)
-                
-                # Verify calls
-                mock_create_analysis.assert_called_once_with("test_id", "dummy")
-                mock_generate_map.assert_called_once_with(self.aoi_path, raster_path="test/path/fire_severity.tif")
+            # Mock the analysis object
+            mock_analysis = MagicMock()
+            mock_analysis.status.return_value = "COMPLETED"
+            mock_analysis.get.return_value = b"dummy_data"
+            mock_analysis._result_path = "test/path/fire_severity.tif"
+            mock_create_analysis.return_value = mock_analysis
+            
+            # Test the function
+            download_dnbr_data("test_id", "dummy", self.aoi_path)
+            
+            # Verify calls
+            mock_create_analysis.assert_called_once_with("test_id", "dummy")
 
 
 class TestGenerateMapShellScript:
