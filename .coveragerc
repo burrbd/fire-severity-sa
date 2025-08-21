@@ -1,5 +1,5 @@
 [run]
-source = src
+source = dnbr,scripts
 omit = 
     */tests/*
     */venv/*
