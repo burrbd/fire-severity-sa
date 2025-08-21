@@ -1,4 +1,4 @@
-name: 🔥 Manual - Generate dNBR Job
+name: 🔥 Manual - Generate dNBR Analysis
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
         type: boolean
 
 jobs:
-  submit-gee-job:
+  generate-dnbr-analysis:
     runs-on: ubuntu-latest
     
     steps:
@@ -33,14 +33,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Set up GEE authentication
-      run: |
-        python -c "from src.gee_jobs import setup_gee_authentication; setup_gee_authentication()"
-        
-    - name: Verify GEE connection
-      run: |
-        python -c "from src.gee_jobs import verify_gee_connection; verify_gee_connection()"
-        
     - name: Generate dNBR analysis
       id: generate
       run: |
@@ -48,7 +40,7 @@ jobs:
         GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"
         
         # Generate dNBR analysis and capture analysis ID
-        analysis_id=$(python scripts/generate_dnbr.py data/fire.geojson $GENERATOR_TYPE | grep "Analysis ID:" | cut -d' ' -f3)
+        analysis_id=$(python scripts/generate_dnbr_analysis.py data/fire.geojson $GENERATOR_TYPE | grep "Analysis ID:" | cut -d' ' -f3)
         
         # Output analysis ID for next action
         echo "analysis_id=$analysis_id" >> $GITHUB_OUTPUT
@@ -56,19 +48,16 @@ jobs:
         
         echo "✅ dNBR analysis generated: $analysis_id"
         echo "🔧 Generator type: $GENERATOR_TYPE"
+        echo "📋 Using GitHub Variable: DNBR_GENERATOR_TYPE=$GENERATOR_TYPE"
         
-    - name: Set up AWS credentials (noop)
+    - name: Show analysis summary
       run: |
-        echo "🔗 AWS credentials setup (noop)"
-        echo "   Would configure AWS credentials for S3 access"
-        
-    - name: Show job summary
-      run: |
-        echo "🎯 GEE Job Summary:"
+        echo "🎯 dNBR Analysis Summary:"
         echo "   Fire ID: ${{ github.event.inputs.fire_id }}"
         echo "   Force reprocess: ${{ github.event.inputs.force_reprocess }}"
-        echo "   Job tracking: S3 bucket fire-severity-sa-jobs"
+        echo "   Analysis ID: ${{ steps.generate.outputs.analysis_id }}"
+        echo "   Generator type: ${{ steps.generate.outputs.generator_type }}"
         echo ""
         echo "📋 Next steps:"
-        echo "   1. Check job status with: python -c \"from src.gee_jobs import list_pending_jobs; print(list_pending_jobs())\""
-        echo "   2. Run check-gee-results workflow when ready to download" 
+        echo "   1. Run 'Download dNBR Data' workflow with analysis ID: ${{ steps.generate.outputs.analysis_id }}"
+        echo "   2. This will download the data and regenerate the map" 

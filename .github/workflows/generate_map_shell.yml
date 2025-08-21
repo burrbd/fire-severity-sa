@@ -1,14 +1,21 @@
-name: 🚀 CI/CD - Test & Deploy to GitHub Pages
+name: 🚀 CI/CD - Test & Generate Map Shell
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'data/**'
-      - 'src/**'
+      - 'dnbr/**'
+      - 'scripts/**'
       - 'tests/**'
       - '.github/workflows/**'
   workflow_dispatch:  # Allow manual triggering
+    inputs:
+      analysis_id:
+        description: 'Analysis ID (ULID) to use for map generation'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   test:
@@ -32,14 +39,14 @@ jobs:
         
     - name: Run tests with coverage
       run: |
-        python -m pytest tests/ -v --cov=src --cov-branch --cov-report=xml --cov-report=term-missing
+        python -m pytest tests/ -v --cov=dnbr --cov=scripts --cov-branch --cov-report=xml --cov-report=term-missing
         
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
-  generate-content:
+  generate-map-shell:
     runs-on: ubuntu-latest
     needs: test
     
@@ -75,22 +82,34 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Generate HTML shell (no dNBR generation)
+    - name: Generate map shell
       run: |
         # Create the outputs directory
         mkdir -p docs/outputs/
-        # Note: dNBR generation is now handled by separate manual workflow
-        # This workflow only updates the HTML shell with existing data
-        echo "📋 HTML shell generation - using existing dNBR data"
-        echo "📋 To generate new dNBR data, run the manual 'Generate dNBR Data' workflow"
         
-        # Generate Leaflet map from existing dNBR data
-        python scripts/generate_map.py data/fire.geojson
+        # Check if analysis_id is provided
+        ANALYSIS_ID="${{ inputs.analysis_id }}"
+        
+        if [ -n "$ANALYSIS_ID" ]; then
+          echo "📋 Generating map shell for analysis: $ANALYSIS_ID"
+          # Generate Leaflet map with specific ULID
+          python scripts/generate_map_shell.py data/fire.geojson --analysis-id "$ANALYSIS_ID"
+        else
+          echo "📋 Generating map shell with default data"
+          echo "💡 To generate map for specific analysis, provide analysis_id input"
+          # Generate Leaflet map with default data
+          python scripts/generate_map_shell.py data/fire.geojson
+        fi
         
     - name: Commit generated files
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add docs/outputs/
-        git diff --quiet && git diff --staged --quiet || git commit -m "auto: regenerate fire severity analysis and map"
+        ANALYSIS_ID="${{ inputs.analysis_id }}"
+        if [ -n "$ANALYSIS_ID" ]; then
+          git diff --quiet && git diff --staged --quiet || git commit -m "auto: regenerate map shell for analysis $ANALYSIS_ID"
+        else
+          git diff --quiet && git diff --staged --quiet || git commit -m "auto: regenerate map shell with default data"
+        fi
         git push origin gh-pages --force 

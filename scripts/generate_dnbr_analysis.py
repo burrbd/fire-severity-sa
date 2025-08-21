@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """
-Entry point for running process_aoi as a script.
-This file is excluded from coverage as it's just a script entry point.
-"""
-
-"""
-Entry point for the fire severity analysis pipeline.
+Main dNBR analysis generation script for GitHub Actions.
 This script generates dNBR analyses using the specified method.
 """
 
 import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import geopandas as gpd
 from scripts.generate_dnbr_utils import load_aoi
 from dnbr.generators import generate_dnbr
@@ -18,9 +15,9 @@ from dnbr.generators import generate_dnbr
 def main():
     """Main pipeline function for dNBR analysis generation."""
     if len(sys.argv) < 2:
-        print("Usage: python __main__.py <aoi_geojson_path> [method]")
+        print("Usage: python generate_dnbr_analysis.py <aoi_geojson_path> [method]")
         print("Methods: dummy (default), gee")
-        print("Note: Use 'python src/generate_leaflet.py <aoi_path>' to generate maps separately")
+        print("Note: Use 'python generate_map_shell.py <aoi_path>' to generate maps separately")
         sys.exit(1)
     
     aoi_path = sys.argv[1]
@@ -31,20 +28,30 @@ def main():
     print(f"🔧 Method: {method}")
     
     # Load the AOI
-    aoi_gdf = load_aoi(aoi_path)
-    print(f"✅ Loaded AOI with {len(aoi_gdf)} features")
+    try:
+        aoi_gdf = load_aoi(aoi_path)
+        print(f"✅ Loaded AOI with {len(aoi_gdf)} features")
+    except Exception as e:
+        print(f"❌ Failed to load AOI: {e}")
+        sys.exit(1)
     
     # Generate dNBR analysis
     print(f"📊 Generating dNBR analysis using {method} method...")
-    analysis = generate_dnbr(aoi_gdf, method=method)
-    print(f"✅ dNBR analysis created: {analysis.get_id()}")
-    print(f"📊 Analysis status: {analysis.status()}")
-    
-    # Output analysis ID for GitHub Actions
-    print(f"🔗 Analysis ID: {analysis.get_id()}")
+    try:
+        analysis = generate_dnbr(aoi_gdf, method=method)
+        print(f"✅ dNBR analysis created: {analysis.get_id()}")
+        print(f"📊 Analysis status: {analysis.status()}")
+        
+        # Output analysis ID for GitHub Actions
+        print(f"🔗 Analysis ID: {analysis.get_id()}")
+        
+    except Exception as e:
+        print(f"❌ Failed to generate dNBR analysis: {e}")
+        sys.exit(1)
     
     print("🎉 dNBR analysis generation completed successfully!")
     print("💡 To download data and generate map, run the download-dnbr-job action")
+
 
 if __name__ == "__main__":
     main() 

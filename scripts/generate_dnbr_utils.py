@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Fire Severity Mapping - AOI Processor (Steel Thread)
+Fire Severity Mapping - AOI Processor Utilities
 
-This script takes an AOI GeoJSON file and generates a dummy fire severity raster.
-This is a minimal implementation to test the end-to-end pipeline.
+This module contains utility functions for AOI processing and map generation.
+The actual dNBR generation is handled by the polymorphic analysis system.
 """
 
 import sys
@@ -28,86 +28,6 @@ def load_aoi(aoi_path):
         sys.exit(1)
 
 
-def calculate_dnbr_values(aoi_gdf, width=50, height=50):
-    """Calculate dNBR values based on fire boundary position.
-    
-    This is a placeholder function that generates dummy dNBR values.
-    Replace this with actual dNBR calculation from pre/post-fire satellite imagery.
-    
-    Args:
-        aoi_gdf: GeoDataFrame containing the fire boundary
-        width: Raster width in pixels
-        height: Raster height in pixels
-    
-    Returns:
-        tuple: (dnbr_values, bounds) where dnbr_values is a 2D numpy array
-    """
-    # Get the bounds of the AOI
-    bounds = aoi_gdf.total_bounds  # [minx, miny, maxx, maxy]
-    
-    # Create coordinate arrays for the raster
-    x_coords = np.linspace(bounds[0], bounds[2], width)
-    y_coords = np.linspace(bounds[1], bounds[3], height)
-    X, Y = np.meshgrid(x_coords, y_coords)
-    
-    # Create points from the coordinate grids
-    points = gpd.points_from_xy(X.flatten(), Y.flatten(), crs=aoi_gdf.crs)
-    points_gdf = gpd.GeoDataFrame(geometry=points)
-    
-    # Check which points are inside the fire boundary
-    inside_fire = points_gdf.within(aoi_gdf.unary_union)
-    inside_fire = inside_fire.values.reshape(height, width)
-    
-    # Create dNBR values based on position
-    # Inside fire boundary: random positive values (burned areas)
-    # Outside fire boundary: random negative values (unburned areas)
-    dnbr_values = np.where(
-        inside_fire,
-        np.random.uniform(0.1, 2.0, (height, width)),  # Burned: 0.1 to 2.0
-        np.random.uniform(-2.0, -0.1, (height, width))  # Unburned: -2.0 to -0.1
-    )
-    
-    return dnbr_values, bounds
-
-
-def generate_dnbr_raster_tile(dnbr_values, bounds, aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
-    """Generate a GeoTIFF raster file from dNBR values.
-    
-    Args:
-        dnbr_values: 2D numpy array of dNBR values
-        bounds: Geographic bounds [minx, miny, maxx, maxy]
-        aoi_gdf: GeoDataFrame for CRS information
-        output_path: Output file path
-    
-    Returns:
-        str: Path to the generated raster file
-    """
-    height, width = dnbr_values.shape
-    
-    # Ensure output directory exists
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Create the raster file
-    transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
-    
-    with rasterio.open(
-        output_path,
-        'w',
-        driver='GTiff',
-        height=height,
-        width=width,
-        count=1,
-        dtype='float32',  # Use float32 for efficiency
-        crs=aoi_gdf.crs,
-        transform=transform,
-        nodata=-9999
-    ) as dst:
-        dst.write(dnbr_values, 1)
-    
-    print(f"Generated dNBR raster tile: {output_path}")
-    return output_path
-
-
 def create_dnbr_colormap():
     """Create a colormap for dNBR visualization.
     
@@ -117,27 +37,6 @@ def create_dnbr_colormap():
     # Create a custom colormap: green (unburned) to red (burned)
     colors = ['green', 'yellow', 'orange', 'red']
     return mcolors.LinearSegmentedColormap.from_list('fire_severity', colors)
-
-
-def generate_dnbr_raster(aoi_gdf, output_path="docs/outputs/fire_severity.tif"):
-    """Generate a dNBR raster based on the AOI bounds.
-    
-    This function orchestrates the dNBR calculation and raster generation process.
-    
-    Args:
-        aoi_gdf: GeoDataFrame containing the fire boundary
-        output_path: Output file path
-    
-    Returns:
-        str: Path to the generated raster file
-    """
-    # Calculate dNBR values
-    dnbr_values, bounds = calculate_dnbr_values(aoi_gdf)
-    
-    # Generate the raster tile
-    raster_path = generate_dnbr_raster_tile(dnbr_values, bounds, aoi_gdf, output_path)
-    
-    return raster_path
 
 
 def create_raster_overlay_image(raster_path, output_path="docs/outputs/fire_severity_overlay.png"):
@@ -256,35 +155,3 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
     
     print(f"Generated map with dNBR raster overlay: {output_path}")
     return output_path
-
-
-def main():
-    """Main function to generate dNBR raster from AOI."""
-    if len(sys.argv) < 2:
-        print("Usage: python generate_dnbr.py <aoi_geojson_path> [method]")
-        print("Methods: dummy (default), gee")
-        sys.exit(1)
-    
-    aoi_path = sys.argv[1]
-    method = sys.argv[2] if len(sys.argv) > 2 else "dummy"
-    
-    print(f"Generating dNBR for AOI: {aoi_path}")
-    print(f"Method: {method}")
-    
-    # Load the AOI
-    aoi_gdf = load_aoi(aoi_path)
-    print(f"Loaded AOI with {len(aoi_gdf)} features")
-    
-    # Use polymorphic dNBR generation
-    from .dnbr_generator import generate_dnbr
-    raster_path = generate_dnbr(aoi_gdf, method=method)
-    
-    print("✅ dNBR generation completed successfully!")
-    print(f"📊 Raster output: {raster_path}")
-    if method == "dummy":
-        print("📋 Note: Generated dummy data. Use 'gee' method for real GEE processing.")
-
-
-# Script entry point moved to __main__.py
-# Test trigger Tue Aug  5 10:58:23 ACST 2025
-# Updated: Wed Aug 20 12:38:09 ACST 2025

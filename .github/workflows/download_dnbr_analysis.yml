@@ -1,4 +1,4 @@
-name: 📥 Manual - Download dNBR Job Data
+name: 📥 Manual - Download dNBR Analysis Data
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       generator_type:
         description: 'Generator type (defaults to DNBR_GENERATOR_TYPE variable)'
         required: false
-        default: 'dummy'
+        default: ''
         type: string
 
 jobs:
@@ -49,21 +49,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Download dNBR data and regenerate map
+    - name: Download dNBR data
       run: |
         # Create the outputs directory
         mkdir -p docs/outputs/
         
-                       # Download data and regenerate map
-               python scripts/download_data.py \
-                 --analysis-id ${{ inputs.analysis_id }} \
-                 --generator-type ${{ inputs.generator_type }} \
-                 --aoi-path data/fire.geojson
+        # Get generator type from GitHub variables if not provided
+        GENERATOR_TYPE="${{ inputs.generator_type }}"
+        if [ -z "$GENERATOR_TYPE" ]; then
+          GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"
+        fi
+        
+        echo "🔧 Using generator type: $GENERATOR_TYPE"
+        
+        # Download/copy data to ULID folder
+        python scripts/download_dnbr_analysis.py \
+          --analysis-id ${{ inputs.analysis_id }} \
+          --generator-type "$GENERATOR_TYPE" \
+          --aoi-path data/fire.geojson \
+          --data-only
     
     - name: Commit generated files
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add docs/outputs/
-        git diff --quiet && git diff --staged --quiet || git commit -m "auto: download dNBR data and regenerate map for analysis ${{ inputs.analysis_id }}"
+        git diff --quiet && git diff --staged --quiet || git commit -m "auto: download dNBR data for analysis ${{ inputs.analysis_id }}"
         git push origin gh-pages --force 
