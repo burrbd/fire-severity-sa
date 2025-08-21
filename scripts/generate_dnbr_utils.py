@@ -39,18 +39,24 @@ def create_dnbr_colormap():
     return mcolors.LinearSegmentedColormap.from_list('fire_severity', colors)
 
 
-def create_raster_overlay_image(raster_path, output_path="docs/outputs/fire_severity_overlay.png"):
+def create_raster_overlay_image(raster_path, output_path=None):
     """Create a colored overlay image from the dNBR raster.
     
     Args:
         raster_path: Path to the dNBR raster file
-        output_path: Output path for the overlay image
+        output_path: Output path for the overlay image (if None, will be in same dir as raster)
     
     Returns:
         tuple: (overlay_path, bounds) for use in map creation
     """
-    # Ensure output directory exists
     import os
+    
+    # If no output path specified, place it in the same directory as the raster
+    if output_path is None:
+        raster_dir = os.path.dirname(raster_path)
+        output_path = os.path.join(raster_dir, "fire_severity_overlay.png")
+    
+    # Ensure output directory exists
     output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
     
@@ -90,12 +96,17 @@ def create_leaflet_map(aoi_gdf, raster_path, output_path="docs/outputs/fire_seve
         prefer_canvas=True
     )
     
-    # Generate the raster overlay image in the same directory as the output
+    # Generate the raster overlay image in the same directory as the raster (ULID folder)
     import os
+    raster_dir = os.path.dirname(raster_path)
     output_dir = os.path.dirname(output_path)
-    os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
+    
+    # Ensure both directories exist
+    os.makedirs(raster_dir, exist_ok=True)  # Ensure ULID directory exists
+    os.makedirs(output_dir, exist_ok=True)  # Ensure output directory exists
+    
     overlay_filename = "fire_severity_overlay.png"
-    overlay_path = os.path.join(output_dir, overlay_filename)
+    overlay_path = os.path.join(raster_dir, overlay_filename)
     
     overlay_path, raster_bounds = create_raster_overlay_image(raster_path, overlay_path)
     

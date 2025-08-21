@@ -196,8 +196,8 @@ class TestCreateLeafletMap:
         assert os.path.exists(output_path)
         assert os.path.exists(os.path.dirname(output_path))
         
-        # Verify the overlay image was also created in the same directory
-        overlay_path = os.path.join(os.path.dirname(output_path), "fire_severity_overlay.png")
+        # Verify the overlay image was also created in the raster directory
+        overlay_path = os.path.join(os.path.dirname(raster_path), "fire_severity_overlay.png")
         assert os.path.exists(overlay_path)
 
 
