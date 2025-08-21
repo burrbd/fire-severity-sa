@@ -163,7 +163,6 @@ cython_debug/
 
 # Project-specific
 # Exclude output files from main branch (gh-pages workflow will remove these rules)
-docs/outputs/*
 
 # macOS
 .DS_Store
@@ -215,4 +214,4 @@ $RECYCLE.BIN/
 *.msp
 
 # Windows shortcuts
-*.lnk 
+*.lnk # gh-pages: outputs are allowed to be committed
