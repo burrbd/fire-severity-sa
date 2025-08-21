@@ -30,7 +30,7 @@ jobs:
         GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"
         
         # Generate dNBR analysis and capture analysis ID
-        analysis_id=$(python scripts/generate_dnbr_analysis.py data/fire.geojson $GENERATOR_TYPE | grep "Analysis ID:" | cut -d' ' -f3)
+        analysis_id=$(python scripts/generate_dnbr_analysis.py data/fire.geojson $GENERATOR_TYPE | grep "🔗 Analysis ID:" | cut -d' ' -f3)
         
         # Output analysis ID for next action
         echo "analysis_id=$analysis_id" >> $GITHUB_OUTPUT
