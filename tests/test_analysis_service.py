@@ -22,7 +22,7 @@ class TestAnalysisService:
     def setup_method(self):
         """Set up test data."""
         # Create analysis service
-        self.service = AnalysisService()
+        self.service = AnalysisService("test-table", "us-west-2")
         
         # Create a test analysis
         self.test_analysis = _TestAnalysis()
@@ -31,6 +31,20 @@ class TestAnalysisService:
         """Test storing an analysis."""
         # Should not raise an exception
         self.service.store_analysis(self.test_analysis)
+    
+    def test_list_analyses(self):
+        """Test listing analyses."""
+        analyses = self.service.list_analyses()
+        assert isinstance(analyses, list)
+        # Currently returns empty list since not implemented
+        assert len(analyses) == 0
+    
+    def test_update_analysis_status(self):
+        """Test updating analysis status."""
+        success = self.service.update_analysis_status("test_id", "COMPLETED")
+        assert isinstance(success, bool)
+        # Currently returns False since not implemented
+        assert success is False
     
     def test_get_analysis_nonexistent(self):
         """Test getting non-existent analysis."""
