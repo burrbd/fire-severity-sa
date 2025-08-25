@@ -93,47 +93,7 @@ class TestCreateDNBRColormap:
         assert callable(colormap)
 
 
-class TestCreateRasterOverlayImage:
-    """Test the create_raster_overlay_image function."""
-    
-    def setup_method(self):
-        """Set up test data."""
-        self.temp_dir = tempfile.mkdtemp()
-        
-        # Create a simple test raster
-        self.raster_path = os.path.join(self.temp_dir, "test_raster.tif")
-        self.output_path = os.path.join(self.temp_dir, "test_overlay.png")
-        
-        # Create a simple test raster with rasterio
-        with rasterio.open(
-            self.raster_path,
-            'w',
-            driver='GTiff',
-            height=10,
-            width=10,
-            count=1,
-            dtype=rasterio.uint8,
-            crs='EPSG:4326',
-            transform=rasterio.transform.from_bounds(0, 0, 1, 1, 10, 10)
-        ) as dst:
-            # Write some test data
-            data = np.random.randint(0, 255, (1, 10, 10), dtype=np.uint8)
-            dst.write(data)
-    
-    def teardown_method(self):
-        """Clean up test data."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
-    def test_create_raster_overlay_image_success(self):
-        """Test successful creation of raster overlay image."""
-        # Test the function
-        create_raster_overlay_image(self.raster_path, self.output_path)
-        
-        # Check that output file was created
-        assert os.path.exists(self.output_path)
-        
-        # Check that it's a valid image file
-        assert self.output_path.endswith('.png')
+
 
 
 class TestCreateLeafletMap:

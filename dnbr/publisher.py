@@ -89,7 +89,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
         import rasterio
         import numpy as np
         import matplotlib.pyplot as plt
-        from .generators import create_dnbr_colormap
+        from scripts.generate_dnbr_utils import create_dnbr_colormap
         
         # Create temporary file to read with rasterio
         with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as temp_file:

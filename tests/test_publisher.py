@@ -71,6 +71,106 @@ class TestS3AnalysisPublisher:
         assert hasattr(self.publisher, '_process_raster_data')
         assert callable(self.publisher._process_raster_data)
     
+    def test_process_raster_data_functionality(self):
+        """Test that _process_raster_data method works correctly."""
+        # Create a simple test raster data
+        import numpy as np
+        import rasterio
+        import tempfile
+        import os
+        
+        # Create a simple test raster
+        data = np.random.randint(0, 255, (10, 10), dtype=np.uint8)
+        
+        with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        try:
+            # Write test raster
+            with rasterio.open(
+                temp_path,
+                'w',
+                driver='GTiff',
+                height=10,
+                width=10,
+                count=1,
+                dtype=rasterio.uint8,
+                crs='EPSG:4326',
+                transform=rasterio.transform.from_bounds(0, 0, 1, 1, 10, 10)
+            ) as dst:
+                dst.write(data, 1)
+            
+            # Read the data back as bytes
+            with open(temp_path, 'rb') as f:
+                raster_data = f.read()
+            
+            # Test the processing
+            bounds, overlay_data = self.publisher._process_raster_data(raster_data)
+            
+            # Check bounds
+            assert isinstance(bounds, list)
+            assert len(bounds) == 4  # [south, west, north, east]
+            assert all(isinstance(b, (int, float)) for b in bounds)
+            
+            # Check overlay data
+            assert isinstance(overlay_data, bytes)
+            assert len(overlay_data) > 0
+            assert overlay_data.startswith(b'\x89PNG')  # PNG header
+            
+        finally:
+            os.unlink(temp_path)
+    
+    def test_process_raster_data_with_real_data(self):
+        """Test _process_raster_data with more realistic dNBR data."""
+        import numpy as np
+        import rasterio
+        import tempfile
+        import os
+        
+        # Create dNBR-like data (typical range -2000 to +2000)
+        data = np.random.uniform(-2000, 2000, (20, 20)).astype(np.float32)
+        
+        with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        try:
+            # Write test raster
+            with rasterio.open(
+                temp_path,
+                'w',
+                driver='GTiff',
+                height=20,
+                width=20,
+                count=1,
+                dtype=rasterio.float32,
+                crs='EPSG:4326',
+                transform=rasterio.transform.from_bounds(138.0, -35.0, 139.0, -34.0, 20, 20)
+            ) as dst:
+                dst.write(data, 1)
+            
+            # Read the data back as bytes
+            with open(temp_path, 'rb') as f:
+                raster_data = f.read()
+            
+            # Test the processing
+            bounds, overlay_data = self.publisher._process_raster_data(raster_data)
+            
+            # Check bounds (should be South Australia coordinates)
+            assert isinstance(bounds, list)
+            assert len(bounds) == 4
+            assert bounds[0] < bounds[2]  # south < north
+            assert bounds[1] < bounds[3]  # west < east
+            assert -35.0 <= bounds[0] <= -34.0  # south latitude
+            assert 138.0 <= bounds[1] <= 139.0  # west longitude
+            
+            # Check overlay data
+            assert isinstance(overlay_data, bytes)
+            assert len(overlay_data) > 0
+            assert overlay_data.startswith(b'\x89PNG')  # PNG header
+            
+        finally:
+            os.unlink(temp_path)
+    
     def test_publish_incomplete_analysis_raises_error(self):
         """Test that publishing incomplete analysis raises error."""
         with pytest.raises(ValueError, match="Cannot publish incomplete analysis"):

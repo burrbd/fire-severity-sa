@@ -29,7 +29,7 @@ Generate and publish fire severity maps for South Australian wildfires using a c
 
 ### **Core Components:**
 
-1. **`DNBRAnalysis`** - Pure metadata class (ULID, status, raster_urls)
+1. **`DNBRAnalysis`** - Concrete metadata class (ULID, status, raster_urls)
 2. **`AnalysisService`** - Single point of database access (DynamoDB)
 3. **`AnalysisPublisher`** - Handles S3 uploads and data processing
 4. **Generators** - Kick off analysis and create metadata objects
@@ -107,7 +107,7 @@ Tests run automatically before commits. Set up with:
 fire-severity-sa/
 ├── dnbr/                   # Core domain logic
 │   ├── __init__.py
-│   ├── analysis.py         # DNBRAnalysis ABC (metadata only)
+│   ├── analysis.py         # DNBRAnalysis concrete class (metadata only)
 │   ├── analysis_service.py # DynamoDB operations (shell)
 │   ├── publisher.py        # S3 publishing (shell)
 │   └── generators.py       # Analysis generation (legacy)

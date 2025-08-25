@@ -4,14 +4,13 @@ Abstract base class for dNBR analyses.
 Defines the interface that all analysis types must implement.
 """
 
-from abc import ABC, abstractmethod
 from ulid import ULID
 import json
 from typing import List
 
 
-class DNBRAnalysis(ABC):
-    """Abstract base class for dNBR analyses."""
+class DNBRAnalysis:
+    """Concrete base class for dNBR analyses."""
     
     def __init__(self):
         """Initialize analysis with a ULID."""
@@ -32,15 +31,13 @@ class DNBRAnalysis(ABC):
         """Get list of raster URLs for this analysis."""
         return self._raster_urls.copy()
     
-    @abstractmethod
     def _get_status(self) -> str:
         """Get analysis status: PENDING, RUNNING, COMPLETED, FAILED."""
-        pass
+        return "PENDING"
     
-    @abstractmethod
     def get(self) -> bytes:
         """Get the actual raster data."""
-        pass
+        raise NotImplementedError("Subclasses must implement get() method")
     
     def to_json(self) -> str:
         """Convert analysis metadata to JSON string."""
