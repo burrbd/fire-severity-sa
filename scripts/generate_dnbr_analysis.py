@@ -40,7 +40,7 @@ def main():
     try:
         analysis = generate_dnbr(aoi_gdf, method=method)
         print(f"✅ dNBR analysis created: {analysis.get_id()}")
-        print(f"📊 Analysis status: {analysis.status()}")
+        print(f"📊 Analysis status: {analysis.status}")
         
         # Output analysis ID for GitHub Actions
         print(f"🔗 Analysis ID: {analysis.get_id()}")

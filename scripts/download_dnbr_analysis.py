@@ -28,7 +28,7 @@ def download_dnbr_data(analysis_id: str, generator_type: str, aoi_path: str = "d
     analysis = create_analysis_from_id(analysis_id, generator_type)
     
     # Check analysis status
-    status = analysis.status()
+    status = analysis.status
     print(f"📊 Analysis status: {status}")
     
     if status == "COMPLETED":
