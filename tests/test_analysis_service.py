@@ -4,6 +4,7 @@ Tests for the AnalysisService class.
 """
 
 import pytest
+import json
 from dnbr.analysis_service import AnalysisService
 from dnbr.analysis import DNBRAnalysis
 
@@ -29,8 +30,15 @@ class TestAnalysisService:
     
     def test_store_analysis(self):
         """Test storing an analysis."""
-        # Should not raise an exception
+        # Should not raise an exception and validate data structure
         self.service.store_analysis(self.test_analysis)
+        
+        # Verify the analysis has the expected structure
+        analysis_json = self.test_analysis.to_json()
+        analysis_data = json.loads(analysis_json)
+        assert 'id' in analysis_data
+        assert 'status' in analysis_data
+        assert 'raster_urls' in analysis_data
     
     def test_list_analyses(self):
         """Test listing analyses."""

@@ -31,9 +31,22 @@ class AnalysisService:
         Args:
             analysis: Analysis object to store
         """
-        # TODO: Implement DynamoDB storage
-        # Convert analysis to JSON and store in DynamoDB
-        pass
+        # Convert analysis to JSON
+        analysis_json = analysis.to_json()
+        analysis_data = json.loads(analysis_json)
+        
+        # TODO: Store in DynamoDB
+        # dynamodb_client.put_item(
+        #     TableName=self.table_name,
+        #     Item={
+        #         'analysis_id': {'S': analysis.get_id()},
+        #         'status': {'S': analysis.status},
+        #         'raster_urls': {'L': [{'S': url} for url in analysis.raster_urls]},
+        #         'created_at': {'S': datetime.utcnow().isoformat()}
+        #     }
+        # )
+        
+
     
     def get_analysis(self, analysis_id: str) -> Optional[DNBRAnalysis]:
         """
@@ -45,8 +58,21 @@ class AnalysisService:
         Returns:
             Analysis object if found, None otherwise
         """
-        # TODO: Implement DynamoDB retrieval
-        # Query DynamoDB by analysis_id and reconstruct Analysis object
+        # TODO: Query DynamoDB by analysis_id
+        # response = dynamodb_client.get_item(
+        #     TableName=self.table_name,
+        #     Key={'analysis_id': {'S': analysis_id}}
+        # )
+        # 
+        # if 'Item' not in response:
+        #     return None
+        # 
+        # item = response['Item']
+        # 
+        # # Reconstruct Analysis object
+        # # This is tricky because we need to create a concrete implementation
+        # # For now, we'll return None and implement this when we have concrete classes
+        
         return None
     
     def list_analyses(self, limit: int = 100) -> List[DNBRAnalysis]:
