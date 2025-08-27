@@ -64,4 +64,33 @@ class TestGenerators:
         assert analysis.get_id() is not None
         assert analysis.status == "PENDING"  # Default status
         assert len(analysis.raster_urls) == 0  # Empty URLs initially
-        assert analysis.get() == b""  # Default empty implementation 
+        assert analysis.get() == b""  # Default empty implementation
+    
+    def test_create_dnbr_generator_gee(self):
+        """Test creating GEE generator."""
+        generator = create_dnbr_generator("gee")
+        assert generator is not None
+        assert hasattr(generator, 'generate_dnbr')
+    
+    def test_gee_generator_generate_dnbr(self):
+        """Test GEE generator creates proper analysis."""
+        import geopandas as gpd
+        from shapely.geometry import Polygon
+        
+        # Create test data
+        geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
+        aoi_gdf = gpd.GeoDataFrame(
+            [{'geometry': geometry, 'name': 'test_fire'}],
+            crs='EPSG:4326'
+        )
+        
+        # Test generator
+        generator = create_dnbr_generator("gee")
+        analysis = generator.generate_dnbr(aoi_gdf)
+        
+        # Verify analysis properties
+        assert isinstance(analysis, DNBRAnalysis)
+        assert analysis.get_id() is not None
+        assert analysis.status == "PENDING"
+        assert len(analysis.raster_urls) == 0
+        assert analysis.generator_type == "gee" 

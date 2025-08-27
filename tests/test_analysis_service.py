@@ -4,8 +4,9 @@ Tests for the AnalysisService class.
 """
 
 import pytest
-from unittest.mock import Mock, patch
-from dnbr.analysis_service import AnalysisService
+from unittest.mock import Mock, MagicMock, patch
+from botocore.exceptions import ClientError, NoCredentialsError
+from dnbr.analysis_service import AnalysisService, create_analysis_service
 from dnbr.analysis import DNBRAnalysis
 
 
@@ -126,4 +127,50 @@ class TestAnalysisService:
         assert call_args[1]['UpdateExpression'] == 'SET #status = :status, updated_at = :updated_at'
         assert call_args[1]['ExpressionAttributeNames'] == {'#status': 'status'}
         assert ':status' in call_args[1]['ExpressionAttributeValues']
-        assert ':updated_at' in call_args[1]['ExpressionAttributeValues'] 
+        assert ':updated_at' in call_args[1]['ExpressionAttributeValues']
+    
+    def test_create_analysis_service_no_credentials(self):
+        """Test creating service with no AWS credentials."""
+        with patch('boto3.client') as mock_boto3:
+            mock_boto3.side_effect = NoCredentialsError()
+            
+            with pytest.raises(ValueError, match="AWS credentials not found"):
+                create_analysis_service()
+    
+    def test_create_analysis_service_table_not_found(self):
+        """Test creating service with table not found."""
+        with patch('boto3.client') as mock_boto3:
+            mock_client = MagicMock()
+            mock_client.describe_table.side_effect = ClientError(
+                {'Error': {'Code': 'ResourceNotFoundException'}}, 
+                'DescribeTable'
+            )
+            mock_boto3.return_value = mock_client
+            
+            with pytest.raises(ValueError, match="DynamoDB table.*not found"):
+                create_analysis_service()
+    
+    def test_create_analysis_service_other_client_error(self):
+        """Test creating service with other client error."""
+        with patch('boto3.client') as mock_boto3:
+            mock_client = MagicMock()
+            mock_client.describe_table.side_effect = ClientError(
+                {'Error': {'Code': 'AccessDenied'}}, 
+                'DescribeTable'
+            )
+            mock_boto3.return_value = mock_client
+            
+            with pytest.raises(ClientError):
+                create_analysis_service()
+    
+    def test_create_analysis_service_success(self):
+        """Test creating service successfully."""
+        with patch('boto3.client') as mock_boto3:
+            mock_client = MagicMock()
+            mock_boto3.return_value = mock_client
+            
+            service = create_analysis_service()
+            
+            assert isinstance(service, AnalysisService)
+            assert service.table_name == 'fire-severity-analyses-dev'
+            assert service.dynamodb == mock_client 
