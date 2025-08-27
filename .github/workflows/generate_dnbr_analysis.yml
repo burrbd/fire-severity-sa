@@ -25,6 +25,11 @@ jobs:
         
     - name: Generate dNBR analysis
       id: generate
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DYNAMODB_TABLE_NAME: ${{ secrets.AWS_DYNAMODB_TABLE_NAME }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       run: |
         # Get generator type from GitHub variables
         GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"

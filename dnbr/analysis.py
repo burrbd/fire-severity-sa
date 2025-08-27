@@ -12,10 +12,11 @@ from typing import List
 class DNBRAnalysis:
     """Concrete base class for dNBR analyses."""
     
-    def __init__(self):
+    def __init__(self, generator_type: str = "unknown"):
         """Initialize analysis with a ULID."""
         self._id = str(ULID())
         self._raster_urls: List[str] = []
+        self._generator_type = generator_type
     
     def get_id(self) -> str:
         """Get the analysis ID."""
@@ -31,19 +32,27 @@ class DNBRAnalysis:
         """Get list of raster URLs for this analysis."""
         return self._raster_urls.copy()
     
+    @property
+    def generator_type(self) -> str:
+        """Get the generator type used for this analysis."""
+        return self._generator_type
+    
     def _get_status(self) -> str:
         """Get analysis status: PENDING, RUNNING, COMPLETED, FAILED."""
         return "PENDING"
     
     def get(self) -> bytes:
         """Get the actual raster data."""
-        raise NotImplementedError("Subclasses must implement get() method")
+        # Default implementation returns empty bytes
+        # Concrete implementations should override this
+        return b""
     
     def to_json(self) -> str:
         """Convert analysis metadata to JSON string."""
         data = {
             'id': self._id,
             'status': self.status,
-            'raster_urls': self.raster_urls
+            'raster_urls': self.raster_urls,
+            'generator_type': self.generator_type
         }
         return json.dumps(data, indent=2) 

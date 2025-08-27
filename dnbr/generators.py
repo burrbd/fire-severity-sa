@@ -47,34 +47,6 @@ def create_dnbr_generator(method: str = "dummy", output_dir: str = "docs/outputs
         raise ValueError(f"Unknown dNBR generation method: {method}")
 
 
-def create_analysis_from_id(analysis_id: str, generator_type: str, output_dir: str = "docs/outputs") -> DNBRAnalysis:
-    """
-    Create an analysis object from analysis ID and generator type.
-    
-    Args:
-        analysis_id: Analysis ID
-        generator_type: Generator type ("dummy" or "gee")
-        output_dir: Directory for output files
-        
-    Returns:
-        DNBRAnalysis object
-    """
-    if generator_type == "dummy":
-        from .dummy_analysis import DummyAnalysis
-        analysis = DummyAnalysis()
-        # Override the generated ULID with the provided one
-        analysis._id = analysis_id
-        return analysis
-    elif generator_type == "gee":
-        from .gee_analysis import GEEAnalysis
-        analysis = GEEAnalysis()
-        # Override the generated ULID with the provided one
-        analysis._id = analysis_id
-        return analysis
-    else:
-        raise ValueError(f"Unknown generator type: {generator_type}")
-
-
 def generate_dnbr(aoi_gdf: gpd.GeoDataFrame, method: str = "dummy", output_dir: str = "docs/outputs") -> DNBRAnalysis:
     """
     Convenience function to generate dNBR analysis.

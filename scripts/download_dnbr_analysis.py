@@ -8,24 +8,27 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
-from dnbr.generators import create_analysis_from_id
+from dnbr.analysis_service import create_analysis_service
 from scripts.generate_leaflet_utils import generate_leaflet_map_standalone
 
 
-def download_dnbr_data(analysis_id: str, generator_type: str, aoi_path: str = "data/fire.geojson"):
+def download_dnbr_data(analysis_id: str, aoi_path: str = "data/fire.geojson"):
     """
     Download dNBR data for a specific analysis and regenerate the map.
     
     Args:
         analysis_id: Analysis ID to download data for
-        generator_type: Generator type ("dummy" or "gee")
         aoi_path: Path to AOI file
     """
     print(f"📥 Downloading dNBR data for analysis: {analysis_id}")
-    print(f"🔧 Generator type: {generator_type}")
     
-    # Create analysis object from ID and type
-    analysis = create_analysis_from_id(analysis_id, generator_type)
+    # Get analysis from database
+    service = create_analysis_service()
+    analysis = service.get_analysis(analysis_id)
+    
+    if not analysis:
+        print(f"❌ Analysis {analysis_id} not found in database")
+        sys.exit(1)
     
     # Check analysis status
     status = analysis.status
@@ -37,12 +40,8 @@ def download_dnbr_data(analysis_id: str, generator_type: str, aoi_path: str = "d
             data = analysis.get()
             print(f"✅ Data retrieved successfully ({len(data)} bytes)")
             
-            # For dummy analyses, data is already in the file system
-            # For GEE analyses, this would download the data
-            if generator_type == "dummy":
-                print("📁 Dummy data already available in file system")
-            else:
-                print("☁️  GEE data downloaded from cloud storage")
+            # Data is available in the file system
+            print("📁 Data available in file system")
             
                                         # Create ULID folder and save the raster data
             import os
@@ -77,13 +76,12 @@ def main():
     """Main function for downloading dNBR data."""
     parser = argparse.ArgumentParser(description="Download dNBR analysis data")
     parser.add_argument("--analysis-id", required=True, help="Analysis ID to download")
-    parser.add_argument("--generator-type", required=True, choices=["dummy", "gee"], 
-                       help="Generator type")
+
     parser.add_argument("--aoi-path", default="data/fire.geojson", 
                        help="Path to AOI file")
     args = parser.parse_args()
     
-    download_dnbr_data(args.analysis_id, args.generator_type, args.aoi_path)
+    download_dnbr_data(args.analysis_id, args.aoi_path)
 
 
 if __name__ == "__main__":

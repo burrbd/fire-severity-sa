@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import geopandas as gpd
 from scripts.generate_dnbr_utils import load_aoi
 from dnbr.generators import generate_dnbr
+from dnbr.analysis_service import create_analysis_service
 
 
 def main():
@@ -35,19 +36,28 @@ def main():
         print(f"❌ Failed to load AOI: {e}")
         sys.exit(1)
     
-    # Generate dNBR analysis
+    # Step 1: Generate dNBR analysis using dummy generator
     print(f"📊 Generating dNBR analysis using {method} method...")
     try:
         analysis = generate_dnbr(aoi_gdf, method=method)
         print(f"✅ dNBR analysis created: {analysis.get_id()}")
         print(f"📊 Analysis status: {analysis.status}")
-        
-        # Output analysis ID for GitHub Actions
-        print(f"🔗 Analysis ID: {analysis.get_id()}")
-        
     except Exception as e:
         print(f"❌ Failed to generate dNBR analysis: {e}")
         sys.exit(1)
+    
+    # Step 2: Store analysis in DynamoDB
+    print(f"💾 Storing analysis in DynamoDB...")
+    try:
+        service = create_analysis_service()
+        service.store_analysis(analysis)
+        print(f"✅ Analysis stored in DynamoDB: {analysis.get_id()}")
+    except Exception as e:
+        print(f"❌ Failed to store analysis in DynamoDB: {e}")
+        sys.exit(1)
+    
+    # Output analysis ID for GitHub Actions
+    print(f"🔗 Analysis ID: {analysis.get_id()}")
     
     print("🎉 dNBR analysis generation completed successfully!")
     print("💡 To download data and generate map, run the download-dnbr-job action")
