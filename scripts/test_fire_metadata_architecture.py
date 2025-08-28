@@ -58,10 +58,10 @@ def test_analysis_with_fire_metadata():
         )
         
         # Verify fire metadata was stored
-        if analysis.get_fire_id():
-            print(f"✅ Analysis has fire_id: {analysis.get_fire_id()}")
+        if analysis.get_aoi_id():
+            print(f"✅ Analysis has aoi_id: {analysis.get_aoi_id()}")
         else:
-            print("❌ Analysis missing fire_id")
+            print("❌ Analysis missing aoi_id")
             return False
         
         if analysis.get_fire_date():
@@ -105,7 +105,7 @@ def test_analysis_without_fire_metadata():
         if analysis.generator_type == "dummy":
             print("✅ Analysis created successfully without fire metadata")
             print(f"✅ Generator type: {analysis.generator_type}")
-            print(f"✅ Fire ID: {analysis.get_fire_id()} (should be None)")
+            print(f"✅ AOI ID: {analysis.get_aoi_id()} (should be None)")
             print(f"✅ Provider: {analysis.get_provider()} (should be None)")
             return True
         else:
@@ -141,10 +141,10 @@ def test_json_serialization():
         
         # Test JSON deserialization
         analysis_from_json = analysis.from_json(json_str)
-        if analysis_from_json.get_fire_id() == analysis.get_fire_id():
-            print("✅ JSON deserialization preserves fire_id")
+        if analysis_from_json.get_aoi_id() == analysis.get_aoi_id():
+            print("✅ JSON deserialization preserves aoi_id")
         else:
-            print("❌ JSON deserialization failed to preserve fire_id")
+            print("❌ JSON deserialization failed to preserve aoi_id")
             return False
         
         if analysis_from_json.get_provider() == analysis.get_provider():

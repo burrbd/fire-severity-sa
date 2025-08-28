@@ -58,12 +58,12 @@ def main():
         analysis = generate_dnbr(aoi_gdf, method=method, data_path=aoi_path, fire_metadata=fire_metadata)
         print(f"✅ dNBR analysis created: {analysis.get_id()}")
         print(f"📊 Analysis status: {analysis.status}")
-        if analysis.get_fire_id():
-            print(f"🔥 Fire ID: {analysis.get_fire_id()}")
+        if analysis.get_aoi_id():
+            print(f"🔥 AOI ID: {analysis.get_aoi_id()}")
         if analysis.get_fire_date():
             print(f"📅 Fire Date: {analysis.get_fire_date()}")
         if analysis.get_provider():
-            print(f"📊 Provider: {analysis.get_provider()}")
+            print(f"🏢 Provider: {analysis.get_provider()}")
     except Exception as e:
         print(f"❌ Failed to generate dNBR analysis: {e}")
         sys.exit(1)

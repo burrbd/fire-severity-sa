@@ -68,7 +68,7 @@ class TestAnalysisService:
         import json
         fire_metadata_data = json.loads(item['fire_metadata']['S'])
         assert fire_metadata_data['provider'] == 'sa_fire'
-        assert fire_metadata_data['fire_id'] == 'bushfire_20191230'
+        assert fire_metadata_data['aoi_id'] == 'bushfire_20191230'
     
     def test_get_analysis_found(self):
         """Test retrieving an existing analysis."""
@@ -104,7 +104,7 @@ class TestAnalysisService:
         # Arrange
         fire_metadata_dict = {
             'provider': 'sa_fire',
-            'fire_id': 'bushfire_20191230',
+            'aoi_id': 'bushfire_20191230',
             'fire_date': '30/12/2019',
             'provider_metadata': {
                 'incident_type': 'Bushfire',
@@ -128,7 +128,7 @@ class TestAnalysisService:
         # Assert
         assert result is not None
         assert result.get_id() == 'test-id'
-        assert result.get_fire_id() == 'bushfire_20191230'
+        assert result.get_aoi_id() == 'bushfire_20191230'
         assert result.get_fire_date() == '30/12/2019'
         assert result.get_provider() == 'sa_fire'
     

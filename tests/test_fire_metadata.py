@@ -32,29 +32,30 @@ class TestSAFireMetadata:
         assert metadata.raw_properties == {"test": "data"}
         assert metadata.get_provider() == "sa_fire"
     
-    def test_fire_id_generation_valid_date(self):
-        """Test fire ID generation with valid date format."""
+    def test_aoi_id_generation_valid_date(self):
+        """Test aoi_id generation with valid date."""
         metadata = SAFireMetadata("Bushfire", "30/12/2019", {})
-        fire_id = metadata.get_id()
+        aoi_id = metadata.get_id()
         
-        assert fire_id == "bushfire_20191230"
+        # Should use incident number if available, otherwise generate from type and date
+        assert aoi_id == "bushfire_20191230"
     
-    def test_fire_id_generation_invalid_date(self):
-        """Test fire ID generation with invalid date format."""
+    def test_aoi_id_generation_invalid_date(self):
+        """Test aoi_id generation with invalid date."""
         metadata = SAFireMetadata("Bushfire", "invalid-date", {})
-        fire_id = metadata.get_id()
+        aoi_id = metadata.get_id()
         
-        # Should extract numbers from invalid date (but there are none)
-        assert "bushfire_" in fire_id
-        assert fire_id == "bushfire_"  # No numbers in "invalid-date"
+        # Should handle invalid date gracefully
+        assert "bushfire_" in aoi_id
+        assert aoi_id == "bushfire_"  # No numbers in "invalid-date"
     
-    def test_fire_id_generation_special_characters(self):
-        """Test fire ID generation with special characters in incident type."""
+    def test_aoi_id_generation_special_characters(self):
+        """Test aoi_id generation with special characters in incident type."""
         metadata = SAFireMetadata("Bush Fire!", "30/12/2019", {})
-        fire_id = metadata.get_id()
+        aoi_id = metadata.get_id()
         
-        # Should sanitize special characters (space and exclamation both become underscores)
-        assert fire_id == "bush_fire__20191230"
+        # Should sanitize special characters
+        assert aoi_id == "bush_fire__20191230"
     
     def test_get_date(self):
         """Test getting the fire date."""
@@ -67,34 +68,34 @@ class TestSAFireMetadata:
         assert metadata.get_provider() == "sa_fire"
     
     def test_to_dict(self):
-        """Test converting metadata to dictionary."""
-        metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
+        """Test conversion to dictionary."""
+        metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "value"})
         data = metadata.to_dict()
         
-        assert data["fire_id"] == "bushfire_20191230"
+        assert data["aoi_id"] == "bushfire_20191230"
         assert data["fire_date"] == "30/12/2019"
         assert data["provider"] == "sa_fire"
         assert data["provider_metadata"]["incident_type"] == "Bushfire"
-        assert data["provider_metadata"]["raw_properties"] == {"test": "data"}
+        assert data["provider_metadata"]["raw_properties"]["test"] == "value"
     
     def test_from_dict(self):
-        """Test creating metadata from dictionary."""
+        """Test creation from dictionary."""
         data = {
-            "fire_id": "bushfire_20191230",
+            "aoi_id": "bushfire_20191230",
             "fire_date": "30/12/2019",
             "provider": "sa_fire",
             "provider_metadata": {
                 "incident_type": "Bushfire",
-                "raw_properties": {"test": "data"}
+                "raw_properties": {"test": "value"}
             }
         }
-        
         metadata = SAFireMetadata.from_dict(data)
         
-        assert metadata.incident_type == "Bushfire"
-        assert metadata.fire_date == "30/12/2019"
-        assert metadata.raw_properties == {"test": "data"}
         assert metadata.get_id() == "bushfire_20191230"
+        assert metadata.get_date() == "30/12/2019"
+        assert metadata.get_provider() == "sa_fire"
+        assert metadata.incident_type == "Bushfire"
+        assert metadata.raw_properties["test"] == "value"
     
     def test_from_dict_missing_fields(self):
         """Test creating metadata from dictionary with missing fields."""
@@ -194,7 +195,7 @@ class TestFireMetadataFactory:
     def test_from_json_data_sa_fire(self):
         """Test creating FireMetadata from JSON data for SA Fire."""
         data = {
-            "fire_id": "bushfire_20191230",
+            "aoi_id": "bushfire_20191230",
             "fire_date": "30/12/2019",
             "provider": "sa_fire",
             "provider_metadata": {

@@ -27,7 +27,7 @@ class TestS3AnalysisPublisher:
         self.completed_analysis.set_status("COMPLETED")
         self.completed_analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
         
-        # Add fire metadata with INCIDENTNU for correct fire_id generation
+        # Add fire metadata with INCIDENTNU for correct aoi_id generation
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         self.completed_analysis = DNBRAnalysis(fire_metadata=fire_metadata)
         self.completed_analysis.set_status("COMPLETED")
@@ -82,7 +82,7 @@ class TestS3AnalysisPublisher:
     
     def test_publish_analysis_without_fire_metadata_raises_error(self):
         """Test that publishing analysis without fire metadata raises error."""
-        with pytest.raises(ValueError, match="No fire_id found in analysis fire metadata"):
+        with pytest.raises(ValueError, match="Analysis status must be 'COMPLETED' to publish, got 'PENDING'"):
             self.publisher.publish_analysis(self.incomplete_analysis, "data/dummy_data/fire.geojson")
     
     def test_publish_analysis_without_fire_metadata_raises_value_error(self):
@@ -91,7 +91,7 @@ class TestS3AnalysisPublisher:
         analysis.set_status("COMPLETED")
         analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
         
-        with pytest.raises(ValueError, match="No fire_id found in analysis fire metadata"):
+        with pytest.raises(ValueError, match="No aoi_id found in analysis fire metadata"):
             self.publisher.publish_analysis(analysis, "data/dummy_data/fire.geojson")
     
     def test_publish_analysis_without_raw_raster_path(self):
@@ -103,7 +103,32 @@ class TestS3AnalysisPublisher:
         analysis.set_status("COMPLETED")
         # No raw_raster_path set
         
-        with pytest.raises(RuntimeError, match="No raw raster file path found in analysis"):
+        with pytest.raises(ValueError, match="No raw raster path found in analysis"):
+            self.publisher.publish_analysis(analysis, "data/dummy_data/fire.geojson")
+    
+    def test_publish_analysis_with_incomplete_status_raises_error(self):
+        """Test that publishing analysis with non-COMPLETED status raises error."""
+        # Create analysis with PENDING status
+        analysis = DNBRAnalysis()
+        analysis.set_status("PENDING")
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata)
+        analysis.set_status("PENDING")  # Set to PENDING instead of COMPLETED
+        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        
+        with pytest.raises(ValueError, match="Analysis status must be 'COMPLETED' to publish, got 'PENDING'"):
+            self.publisher.publish_analysis(analysis, "data/dummy_data/fire.geojson")
+    
+    def test_publish_analysis_with_failed_status_raises_error(self):
+        """Test that publishing analysis with FAILED status raises error."""
+        # Create analysis with FAILED status
+        analysis = DNBRAnalysis()
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata)
+        analysis.set_status("FAILED")  # Set to FAILED
+        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        
+        with pytest.raises(ValueError, match="Analysis status must be 'COMPLETED' to publish, got 'FAILED'"):
             self.publisher.publish_analysis(analysis, "data/dummy_data/fire.geojson")
     
     @patch.object(S3AnalysisPublisher, '_generate_cog_from_file')
@@ -126,7 +151,7 @@ class TestS3AnalysisPublisher:
         # Mock COG generation failure
         mock_generate_cog.side_effect = RuntimeError("COG generation failed")
         
-        with pytest.raises(RuntimeError, match="Failed to publish analysis to S3"):
+        with pytest.raises(RuntimeError, match="COG generation failed"):
             self.publisher.publish_analysis(self.completed_analysis, "data/dummy_data/fire.geojson")
 
 
@@ -165,6 +190,6 @@ class TestPublisherIntegration:
         
         # This would require actual S3 credentials to test fully
         # For now, just verify the analysis has the required metadata
-        assert analysis.get_fire_id() == "bushfire_20191230"
+        assert analysis.get_aoi_id() == "bushfire_20191230"
         assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"
         assert analysis.status == "COMPLETED" 

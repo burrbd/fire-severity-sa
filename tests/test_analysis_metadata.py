@@ -93,7 +93,7 @@ class TestAnalysisMetadata:
         
         assert data['fire_metadata'] is not None
         assert data['fire_metadata']['provider'] == 'sa_fire'
-        assert data['fire_metadata']['fire_id'] == 'bushfire_20191230'
+        assert data['fire_metadata']['aoi_id'] == 'bushfire_20191230'
     
     def test_status_values(self):
         """Test that status has expected values."""
@@ -104,7 +104,7 @@ class TestAnalysisMetadata:
     def test_fire_metadata_methods(self):
         """Test fire metadata delegation methods."""
         # Without fire metadata
-        assert self.analysis.get_fire_id() is None
+        assert self.analysis.get_aoi_id() is None
         assert self.analysis.get_fire_date() is None
         assert self.analysis.get_provider() is None
         
@@ -112,6 +112,6 @@ class TestAnalysisMetadata:
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
         analysis = DNBRAnalysis(fire_metadata=fire_metadata)
         
-        assert analysis.get_fire_id() == 'bushfire_20191230'
+        assert analysis.get_aoi_id() == 'bushfire_20191230'
         assert analysis.get_fire_date() == '30/12/2019'
         assert analysis.get_provider() == 'sa_fire' 

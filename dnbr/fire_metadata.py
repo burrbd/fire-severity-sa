@@ -16,10 +16,10 @@ class FireMetadata(ABC):
     @abstractmethod
     def get_id(self) -> str:
         """
-        Get the unique fire identifier.
+        Get the unique area of interest identifier.
         
         Returns:
-            String identifier for the fire
+            String identifier for the area of interest
         """
         pass
     
@@ -101,10 +101,10 @@ class SAFireMetadata(FireMetadata):
         self.incident_type = incident_type
         self.fire_date = fire_date
         self.raw_properties = raw_properties
-        self._fire_id = self._generate_fire_id()
+        self._aoi_id = self._generate_aoi_id()
     
-    def _generate_fire_id(self) -> str:
-        """Generate a sanitized fire ID from incident number and date."""
+    def _generate_aoi_id(self) -> str:
+        """Generate a sanitized area of interest ID from incident number and date."""
         try:
             date_obj = datetime.strptime(self.fire_date, '%d/%m/%Y')
             date_str = date_obj.strftime('%Y%m%d')
@@ -123,8 +123,8 @@ class SAFireMetadata(FireMetadata):
             return f"{incident_safe}_{date_str}"
     
     def get_id(self) -> str:
-        """Get the unique fire identifier."""
-        return self._fire_id
+        """Get the unique area of interest identifier."""
+        return self._aoi_id
     
     def get_date(self) -> str:
         """Get the fire date."""
@@ -137,7 +137,7 @@ class SAFireMetadata(FireMetadata):
     def to_dict(self) -> Dict[str, Any]:
         """Convert metadata to dictionary for serialization."""
         return {
-            "fire_id": self._fire_id,
+            "aoi_id": self._aoi_id,
             "fire_date": self.fire_date,
             "provider": self.get_provider(),
             "provider_metadata": {

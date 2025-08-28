@@ -39,8 +39,8 @@ class DNBRAnalysis:
         """Get the fire metadata object."""
         return self._fire_metadata
     
-    def get_fire_id(self) -> Optional[str]:
-        """Get the fire ID from the fire metadata."""
+    def get_aoi_id(self) -> Optional[str]:
+        """Get the area of interest ID from fire metadata."""
         if self._fire_metadata:
             return self._fire_metadata.get_id()
         return None

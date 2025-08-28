@@ -45,8 +45,8 @@ def publish_dnbr_data(analysis_id: str, aoi_path: str = "data/dummy_data/fire.ge
         print(f"❌ Analysis missing raw raster path")
         sys.exit(1)
     
-    if not analysis.get_fire_id():
-        print(f"❌ Analysis missing fire metadata")
+    if not analysis.get_aoi_id():
+        print(f"❌ Analysis missing aoi metadata")
         sys.exit(1)
     
     # Get S3 bucket from environment
@@ -76,7 +76,7 @@ def publish_dnbr_data(analysis_id: str, aoi_path: str = "data/dummy_data/fire.ge
         
         print(f"🎉 Publishing completed successfully!")
         print(f"💡 Analysis ID: {analysis_id}")
-        print(f"🔥 Fire ID: {analysis.get_fire_id()}")
+        print(f"🔥 AOI ID: {analysis.get_aoi_id()}")
         
     except Exception as e:
         print(f"❌ Failed to publish to S3: {e}")

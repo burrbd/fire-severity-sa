@@ -37,7 +37,7 @@ class TestS3PublishingBehavior:
                 # urls = publisher.publish_analysis(analysis, geojson_path)
                 
                 # For now, just verify the analysis has the right data for publishing
-                assert analysis.get_fire_id() == "201912036"
+                assert analysis.get_aoi_id() == "201912036"
                 assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"
                 assert analysis.get_id() is not None
                 
@@ -52,11 +52,11 @@ class TestS3PublishingBehavior:
         analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
         
         # Act & Assert
-        fire_id = analysis.get_fire_id()
+        aoi_id = analysis.get_aoi_id()
         analysis_id = analysis.get_id()
         
-        expected_raster_key = f"{fire_id}/{analysis_id}/dnbr.cog.tif"
-        expected_vector_key = f"{fire_id}/{analysis_id}/aoi.geojson"
+        expected_raster_key = f"{aoi_id}/{analysis_id}/dnbr.cog.tif"
+        expected_vector_key = f"{aoi_id}/{analysis_id}/aoi.geojson"
         
         assert expected_raster_key == "201912036/" + analysis_id + "/dnbr.cog.tif"
         assert expected_vector_key == "201912036/" + analysis_id + "/aoi.geojson"
@@ -82,11 +82,11 @@ class TestS3PublishingBehavior:
         analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
         
         # Act & Assert
-        with pytest.raises(ValueError, match="No fire_id found"):
+        with pytest.raises(ValueError, match="No aoi_id found"):
             # This would be the actual publisher call
             # publisher.publish_analysis(analysis, geojson_path)
-            if not analysis.get_fire_id():
-                raise ValueError("No fire_id found in analysis fire metadata")
+            if not analysis.get_aoi_id():
+                raise ValueError("No aoi_id found in analysis fire metadata")
 
 
 class TestS3IntegrationWorkflow:
@@ -110,19 +110,19 @@ class TestS3IntegrationWorkflow:
                 mock_boto3.return_value = mock_s3
                 
                 # Simulate the publishing workflow
-                fire_id = analysis.get_fire_id()
+                aoi_id = analysis.get_aoi_id()
                 analysis_id = analysis.get_id()
                 
                 # Verify the analysis has all required data
-                assert fire_id == "201912036"
+                assert aoi_id == "201912036"
                 assert analysis_id is not None
                 assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"
                 assert os.path.exists(analysis.raw_raster_path)
                 assert os.path.exists(geojson_path)
                 
                 # Verify S3 keys would be created correctly
-                raster_key = f"{fire_id}/{analysis_id}/dnbr.cog.tif"
-                vector_key = f"{fire_id}/{analysis_id}/aoi.geojson"
+                raster_key = f"{aoi_id}/{analysis_id}/dnbr.cog.tif"
+                vector_key = f"{aoi_id}/{analysis_id}/aoi.geojson"
                 
                 assert raster_key.startswith("201912036/")
                 assert raster_key.endswith("/dnbr.cog.tif")

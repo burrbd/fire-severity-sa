@@ -90,8 +90,8 @@ def test_published_urls_simulation():
         )
         
         # Simulate publisher setting published URLs
-        analysis._published_dnbr_raster_url = "s3://bucket/fire_id/ulid/dnbr.cog.tif"
-        analysis._published_vector_url = "s3://bucket/fire_id/ulid/aoi.geojson"
+        analysis._published_dnbr_raster_url = "s3://bucket/aoi_id/ulid/dnbr.cog.tif"
+        analysis._published_vector_url = "s3://bucket/aoi_id/ulid/aoi.geojson"
         
         # Test published URLs
         if analysis.published_dnbr_raster_url:

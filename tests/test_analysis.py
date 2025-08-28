@@ -19,7 +19,7 @@ class TestDNBRAnalysis:
         
         assert analysis.generator_type == "dummy"
         assert analysis.fire_metadata is None
-        assert analysis.get_fire_id() is None
+        assert analysis.get_aoi_id() is None
         assert analysis.get_fire_date() is None
         assert analysis.get_provider() is None
         assert analysis.status == "PENDING"
@@ -34,7 +34,7 @@ class TestDNBRAnalysis:
         
         assert analysis.generator_type == "dummy"
         assert analysis.fire_metadata == fire_metadata
-        assert analysis.get_fire_id() == "bushfire_20191230"
+        assert analysis.get_aoi_id() == "bushfire_20191230"
         assert analysis.get_fire_date() == "30/12/2019"
         assert analysis.get_provider() == "sa_fire"
     
@@ -125,7 +125,7 @@ class TestDNBRAnalysis:
         
         assert data["generator_type"] == "dummy"
         assert data["fire_metadata"]["provider"] == "sa_fire"
-        assert data["fire_metadata"]["fire_id"] == "bushfire_20191230"
+        assert data["fire_metadata"]["aoi_id"] == "bushfire_20191230"
         assert data["status"] == "PENDING"
         assert data["raw_raster_path"] == "test/path.tif"
         assert data["published_dnbr_raster_url"] == "s3://bucket/file.tif"
@@ -160,7 +160,7 @@ class TestDNBRAnalysis:
         reconstructed_analysis = DNBRAnalysis.from_json(json_str)
         
         assert reconstructed_analysis.generator_type == original_analysis.generator_type
-        assert reconstructed_analysis.get_fire_id() == original_analysis.get_fire_id()
+        assert reconstructed_analysis.get_aoi_id() == original_analysis.get_aoi_id()
         assert reconstructed_analysis.get_fire_date() == original_analysis.get_fire_date()
         assert reconstructed_analysis.get_provider() == original_analysis.get_provider()
         assert reconstructed_analysis.get_id() == original_analysis.get_id()
@@ -175,7 +175,7 @@ class TestDNBRAnalysis:
             "generator_type": "dummy",
             "fire_metadata": {
                 "provider": "unknown_provider",
-                "fire_id": "test",
+                "aoi_id": "test",
                 "fire_date": "30/12/2019"
             },
             "status": "PENDING",
@@ -215,7 +215,7 @@ class TestDNBRAnalysis:
         assert analysis.fire_metadata == fire_metadata
         
         # Test method access
-        assert analysis.get_fire_id() == "bushfire_20191230"
+        assert analysis.get_aoi_id() == "bushfire_20191230"
         assert analysis.get_fire_date() == "30/12/2019"
         assert analysis.get_provider() == "sa_fire"
     
@@ -223,7 +223,7 @@ class TestDNBRAnalysis:
         """Test fire metadata methods when no metadata is present."""
         analysis = DNBRAnalysis()
         
-        assert analysis.get_fire_id() is None
+        assert analysis.get_aoi_id() is None
         assert analysis.get_fire_date() is None
         assert analysis.get_provider() is None
     
@@ -266,7 +266,7 @@ class TestDNBRAnalysisIntegration:
         
         # Verify all properties are preserved
         assert reconstructed_analysis.generator_type == analysis.generator_type
-        assert reconstructed_analysis.get_fire_id() == analysis.get_fire_id()
+        assert reconstructed_analysis.get_aoi_id() == analysis.get_aoi_id()
         assert reconstructed_analysis.get_fire_date() == analysis.get_fire_date()
         assert reconstructed_analysis.get_provider() == analysis.get_provider()
         assert reconstructed_analysis.get_id() == analysis.get_id()

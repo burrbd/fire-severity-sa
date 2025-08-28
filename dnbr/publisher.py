@@ -65,28 +65,30 @@ class S3AnalysisPublisher(AnalysisPublisher):
             List of S3 URLs for published files
         """
         # Validate inputs
-        if not analysis.get_fire_id():
-            raise ValueError("No fire_id found in analysis fire metadata")
+        if analysis.status != "COMPLETED":
+            raise ValueError(f"Analysis status must be 'COMPLETED' to publish, got '{analysis.status}'")
+        
+        if not analysis.get_aoi_id():
+            raise ValueError("No aoi_id found in analysis fire metadata")
         
         if not analysis.raw_raster_path:
-            raise RuntimeError("No raw raster file path found in analysis")
+            raise ValueError("No raw raster path found in analysis")
         
         if not os.path.exists(analysis.raw_raster_path):
-            raise FileNotFoundError(f"Raster file not found: {analysis.raw_raster_path}")
+            raise FileNotFoundError(f"Raw raster file not found: {analysis.raw_raster_path}")
         
         if not os.path.exists(geojson_path):
             raise FileNotFoundError(f"GeoJSON file not found: {geojson_path}")
         
+        # Generate COG from raw raster
+        cog_path = self._generate_cog_from_file(analysis.raw_raster_path)
+        
         try:
-            # Get metadata for S3 key construction
-            fire_id = analysis.get_fire_id()
+            aoi_id = analysis.get_aoi_id()
             analysis_id = analysis.get_id()
             
-            # Create S3 key structure: <fire_id>/<ulid>/dnbr.cog.tif
-            s3_prefix = f"{fire_id}/{analysis_id}"
-            
-            # Generate COG from raster file
-            cog_path = self._generate_cog_from_file(analysis.raw_raster_path)
+            # Create S3 key structure: <aoi_id>/<ulid>/dnbr.cog.tif
+            s3_prefix = f"{aoi_id}/{analysis_id}"
             
             # Upload COG to S3
             cog_key = f"{s3_prefix}/dnbr.cog.tif"
