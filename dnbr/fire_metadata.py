@@ -104,7 +104,7 @@ class SAFireMetadata(FireMetadata):
         self._fire_id = self._generate_fire_id()
     
     def _generate_fire_id(self) -> str:
-        """Generate a sanitized fire ID from incident type and date."""
+        """Generate a sanitized fire ID from incident number and date."""
         try:
             date_obj = datetime.strptime(self.fire_date, '%d/%m/%Y')
             date_str = date_obj.strftime('%Y%m%d')
@@ -112,9 +112,15 @@ class SAFireMetadata(FireMetadata):
             # If date parsing fails, use the original string but sanitize it
             date_str = re.sub(r'[^0-9]', '', self.fire_date)
         
-        # Sanitize incident type for use in file paths
-        incident_safe = re.sub(r'[^a-zA-Z0-9]', '_', self.incident_type.lower())
-        return f"{incident_safe}_{date_str}"
+        # Use INCIDENTNU if available, otherwise fall back to incident type
+        incident_number = self.raw_properties.get('INCIDENTNU')
+        if incident_number:
+            # Use the incident number directly as it should be unique
+            return str(incident_number)
+        else:
+            # Fall back to sanitized incident type for use in file paths
+            incident_safe = re.sub(r'[^a-zA-Z0-9]', '_', self.incident_type.lower())
+            return f"{incident_safe}_{date_str}"
     
     def get_id(self) -> str:
         """Get the unique fire identifier."""

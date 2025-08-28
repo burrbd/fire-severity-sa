@@ -64,8 +64,11 @@ class TestAnalysisService:
         item = call_args[1]['Item']
         
         assert 'fire_metadata' in item
-        assert item['fire_metadata']['S']['provider'] == 'sa_fire'
-        assert item['fire_metadata']['S']['fire_id'] == 'bushfire_20191230'
+        # Verify fire_metadata is stored as a JSON string
+        import json
+        fire_metadata_data = json.loads(item['fire_metadata']['S'])
+        assert fire_metadata_data['provider'] == 'sa_fire'
+        assert fire_metadata_data['fire_id'] == 'bushfire_20191230'
     
     def test_get_analysis_found(self):
         """Test retrieving an existing analysis."""
@@ -108,11 +111,12 @@ class TestAnalysisService:
                 'raw_properties': {'test': 'data'}
             }
         }
+        import json
         mock_response = {
             'Item': {
                 'analysis_id': {'S': 'test-id'},
                 'status': {'S': 'COMPLETED'},
-                'fire_metadata': {'S': fire_metadata_dict},
+                'fire_metadata': {'S': json.dumps(fire_metadata_dict)},
                 'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'}
             }
         }

@@ -269,8 +269,11 @@ class TestDNBRAnalysis:
         assert item["generator_type"]["S"] == "dummy"
         assert item["raw_raster_path"]["S"] == "test/path.tif"
         assert "fire_metadata" in item
-        assert item["fire_metadata"]["S"]["provider"] == "sa_fire"
-        assert item["fire_metadata"]["S"]["fire_id"] == "bushfire_20191230"
+        # Verify fire_metadata is stored as a JSON string
+        import json
+        fire_metadata_data = json.loads(item["fire_metadata"]["S"])
+        assert fire_metadata_data["provider"] == "sa_fire"
+        assert fire_metadata_data["fire_id"] == "bushfire_20191230"
     
     def test_from_dynamodb_item_without_metadata(self):
         """Test creating analysis from DynamoDB item without fire metadata."""
@@ -306,11 +309,12 @@ class TestDNBRAnalysis:
             }
         }
         
+        import json
         item = {
             'analysis_id': {'S': 'test-id'},
             'status': {'S': 'COMPLETED'},
             'generator_type': {'S': 'dummy'},
-            'fire_metadata': {'S': fire_metadata_dict},
+            'fire_metadata': {'S': json.dumps(fire_metadata_dict)},
             'raw_raster_path': {'S': 'test/path.tif'},
             'created_at': {'S': '2023-01-01T00:00:00'}
         }
@@ -338,6 +342,19 @@ class TestDNBRAnalysis:
         
         # Deserialize from DynamoDB item
         reconstructed_analysis = DNBRAnalysis.from_dynamodb_item(item)
+        
+        # Verify the roundtrip preserved all data
+        assert reconstructed_analysis.get_id() == original_analysis.get_id()
+        assert reconstructed_analysis.status == original_analysis.status
+        assert reconstructed_analysis.generator_type == original_analysis.generator_type
+        assert reconstructed_analysis.raw_raster_path == original_analysis.raw_raster_path
+        assert reconstructed_analysis.published_dnbr_raster_url == original_analysis.published_dnbr_raster_url
+        assert reconstructed_analysis.published_vector_url == original_analysis.published_vector_url
+        
+        # Verify fire metadata was preserved
+        assert reconstructed_analysis.get_fire_id() == original_analysis.get_fire_id()
+        assert reconstructed_analysis.get_fire_date() == original_analysis.get_fire_date()
+        assert reconstructed_analysis.get_provider() == original_analysis.get_provider()
         
         # Verify all properties are preserved
         assert reconstructed_analysis.get_id() == original_analysis.get_id()

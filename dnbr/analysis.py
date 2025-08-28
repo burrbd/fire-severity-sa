@@ -177,6 +177,7 @@ class DNBRAnalysis:
         Returns:
             DNBRAnalysis instance
         """
+        import json
         # Create analysis object from JSON if fire_metadata is present
         if 'fire_metadata' in item:
             # Reconstruct the full JSON and use from_json
@@ -184,7 +185,7 @@ class DNBRAnalysis:
                 'id': item['analysis_id']['S'],
                 'status': item.get('status', {}).get('S', 'PENDING'),
                 'generator_type': item.get('generator_type', {}).get('S', 'unknown'),
-                'fire_metadata': item['fire_metadata']['S'],
+                'fire_metadata': json.loads(item['fire_metadata']['S']),
                 'raw_raster_path': item.get('raw_raster_path', {}).get('S'),
                 'published_dnbr_raster_url': item.get('published_dnbr_raster_url', {}).get('S'),
                 'published_vector_url': item.get('published_vector_url', {}).get('S'),
