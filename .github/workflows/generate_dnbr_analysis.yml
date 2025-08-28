@@ -35,7 +35,7 @@ jobs:
         GENERATOR_TYPE="${{ vars.DNBR_GENERATOR_TYPE || 'dummy' }}"
         
         # Generate dNBR analysis and capture analysis ID
-        analysis_id=$(python scripts/generate_dnbr_analysis.py data/fire.geojson $GENERATOR_TYPE | grep "Analysis ID:" | awk '{print $NF}')
+        analysis_id=$(python scripts/generate_dnbr_analysis.py data/fire.geojson $GENERATOR_TYPE | grep "🔗 Analysis ID:" | awk '{print $NF}')
         
         # Output analysis ID for next action
         echo "analysis_id=$analysis_id" >> $GITHUB_OUTPUT
@@ -52,5 +52,5 @@ jobs:
         echo "   Generator type: ${{ steps.generate.outputs.generator_type }}"
         echo ""
         echo "📋 Next steps:"
-        echo "   1. Run 'Download dNBR Data' workflow with analysis ID: ${{ steps.generate.outputs.analysis_id }}"
-        echo "   2. This will download the data and regenerate the map" 
+        echo "   1. Run 'Publish dNBR Analysis to S3' workflow with analysis ID: ${{ steps.generate.outputs.analysis_id }}"
+        echo "   2. This will publish the data to S3" 
