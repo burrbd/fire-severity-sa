@@ -98,21 +98,6 @@ Open `docs/outputs/fire_severity_map.html` in your browser.
 python -m pytest tests/ -v --cov=dnbr --cov=scripts
 ```
 
-### Test Coverage
-- **Core `dnbr` module: 100%** ✅
-- **Main script: 100%** ✅
-- **Overall coverage: 79%** ✅
-- **All tests passing** ✅
-
-### Coverage Breakdown:
-- **`analysis.py`**: 100% - Metadata class fully tested
-- **`analysis_service.py`**: 100% - DynamoDB operations fully tested
-- **`dummy_generator.py`**: 100% - Dummy generator fully tested
-- **`gee_generator.py`**: 100% - GEE generator fully tested
-- **`generators.py`**: 100% - Factory functions fully tested
-- **`publisher.py`**: 100% - Publisher interface fully tested
-- **`generate_dnbr_analysis.py`**: 100% - Main script fully tested
-
 ### Pre-commit Hooks
 Tests run automatically before commits. Set up with:
 ```bash
