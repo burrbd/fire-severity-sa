@@ -1,84 +1,37 @@
 #!/usr/bin/env python3
 """
-Analysis Publisher for uploading analysis data to S3.
-This module handles the final step of making analysis data available for maps.
+Publisher for publishing analysis results to various storage systems.
+Follows SOLID principles with abstract interfaces and dependency injection.
 """
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
+import rasterio
+from rasterio.io import MemoryFile
+import tempfile
+import os
 from .analysis import DNBRAnalysis
 
 
-def generate_cog_from_file(input_path: str, output_path: str) -> str:
-    """
-    Generate a Cloud Optimized GeoTIFF (COG) from an existing raster file.
-    
-    Args:
-        input_path: Path to the input raster file
-        output_path: Path where the COG file should be saved
-        
-    Returns:
-        Path to the generated COG file
-        
-    Raises:
-        RuntimeError: If COG generation fails
-        FileNotFoundError: If input file doesn't exist
-    """
-    import os
-    import rasterio
-    from rasterio.warp import reproject, Resampling
-    
-    if not os.path.exists(input_path):
-        raise FileNotFoundError(f"Input raster file not found: {input_path}")
-    
-    try:
-        # Read the source raster
-        with rasterio.open(input_path) as src:
-            # Create COG with proper compression and tiling
-            profile = src.profile.copy()
-            profile.update({
-                'driver': 'GTiff',
-                'compress': 'lzw',
-                'tiled': True,
-                'blockxsize': 512,
-                'blockysize': 512,
-                'photometric': 'minisblack',
-                'interleave': 'pixel'
-            })
-            
-            # Write COG
-            with rasterio.open(output_path, 'w', **profile) as dst:
-                dst.write(src.read())
-                
-                # Add overviews for better web serving
-                dst.build_overviews([2, 4, 8, 16], Resampling.nearest)
-                dst.update_tags(ns='rio_overview', resampling='nearest')
-        
-        return output_path
-        
-    except Exception as e:
-        raise RuntimeError(f"Failed to generate COG: {str(e)}")
-
-
 class AnalysisPublisher(ABC):
-    """Abstract base class for publishing analysis data to storage."""
+    """Abstract base class for publishing analysis results."""
     
     @abstractmethod
     def publish_analysis(self, analysis: DNBRAnalysis, geojson_path: str) -> List[str]:
         """
-        Publish analysis data to storage and return URLs.
+        Publish analysis results.
         
         Args:
-            analysis: Completed analysis object to publish
-            geojson_path: Path to the GeoJSON file for uploading to S3
+            analysis: Analysis object containing metadata and file paths
+            geojson_path: Path to the GeoJSON file to publish
             
         Returns:
-            List of URLs where the data is now available
+            List of published URLs
             
         Raises:
-            ValueError: If analysis is not completed
+            ValueError: If analysis is missing required data
+            FileNotFoundError: If required files don't exist
             RuntimeError: If publishing fails
         """
         pass
@@ -87,13 +40,13 @@ class AnalysisPublisher(ABC):
 class S3AnalysisPublisher(AnalysisPublisher):
     """S3 implementation of analysis publisher."""
     
-    def __init__(self, bucket_name: str, region: str = "us-east-1", s3_client=None):
+    def __init__(self, bucket_name: str, region: str = "ap-southeast-2", s3_client=None):
         """
         Initialize S3 publisher.
         
         Args:
-            bucket_name: S3 bucket name for storing analysis data
-            region: AWS region for the bucket
+            bucket_name: S3 bucket name
+            region: AWS region (defaults to ap-southeast-2)
             s3_client: Optional S3 client for dependency injection
         """
         self.bucket_name = bucket_name
@@ -102,103 +55,117 @@ class S3AnalysisPublisher(AnalysisPublisher):
     
     def publish_analysis(self, analysis: DNBRAnalysis, geojson_path: str) -> List[str]:
         """
-        Publish analysis data to S3.
+        Publish analysis to S3.
         
         Args:
-            analysis: Completed analysis object to publish
-            geojson_path: Path to the GeoJSON file for uploading to S3
+            analysis: Analysis object
+            geojson_path: Path to GeoJSON file
             
         Returns:
-            List of S3 URLs where the data is now available
+            List of S3 URLs for published files
         """
-        # Validate analysis is completed
-        if analysis.status != "COMPLETED":
-            raise ValueError(f"Cannot publish incomplete analysis (status: {analysis.status})")
+        # Validate inputs
+        if not analysis.get_fire_id():
+            raise ValueError("No fire_id found in analysis fire metadata")
+        
+        if not analysis.raw_raster_path:
+            raise RuntimeError("No raw raster file path found in analysis")
+        
+        if not os.path.exists(analysis.raw_raster_path):
+            raise FileNotFoundError(f"Raster file not found: {analysis.raw_raster_path}")
+        
+        if not os.path.exists(geojson_path):
+            raise FileNotFoundError(f"GeoJSON file not found: {geojson_path}")
         
         try:
-            # Use fire metadata from the analysis
+            # Get metadata for S3 key construction
             fire_id = analysis.get_fire_id()
-            fire_date = analysis.get_fire_date()
-            
-            if not fire_id:
-                raise RuntimeError("No fire_id found in analysis fire metadata")
-            
             analysis_id = analysis.get_id()
             
             # Create S3 key structure: <fire_id>/<ulid>/dnbr.cog.tif
             s3_prefix = f"{fire_id}/{analysis_id}"
             
-            # Get the raw raster file path from the analysis
-            raw_raster_path = analysis.raw_raster_path
-            if not raw_raster_path:
-                raise RuntimeError("No raw raster file path found in analysis")
+            # Generate COG from raster file
+            cog_path = self._generate_cog_from_file(analysis.raw_raster_path)
             
-            # Create temporary COG file
-            import tempfile
-            import os
-            with tempfile.NamedTemporaryFile(suffix='.cog.tif', delete=False) as temp_cog:
-                cog_path = temp_cog.name
+            # Upload COG to S3
+            cog_key = f"{s3_prefix}/dnbr.cog.tif"
+            self.s3_client.upload_file(cog_path, self.bucket_name, cog_key)
             
-            try:
-                # Generate COG from the raw raster file
-                generate_cog_from_file(raw_raster_path, cog_path)
-                
-                # Upload COG to S3
-                cog_key = f"{s3_prefix}/dnbr.cog.tif"
-                self.s3_client.upload_file(
-                    cog_path, 
-                    self.bucket_name, 
-                    cog_key,
-                    ExtraArgs={'ContentType': 'image/tiff'}
-                )
-                
-                # Upload GeoJSON to S3
-                aoi_key = f"{s3_prefix}/aoi.geojson"
-                self.s3_client.upload_file(
-                    geojson_path,
-                    self.bucket_name,
-                    aoi_key,
-                    ExtraArgs={'ContentType': 'application/geo+json'}
-                )
-                
-                # Set published URLs in the analysis object
-                analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{cog_key}"
-                analysis._published_vector_url = f"s3://{self.bucket_name}/{aoi_key}"
-                
-                # Return S3 URLs
-                s3_urls = [
-                    analysis._published_dnbr_raster_url,
-                    analysis._published_vector_url
-                ]
-                
-                return s3_urls
-                
-            finally:
-                # Clean up temporary COG file
-                if os.path.exists(cog_path):
-                    os.unlink(cog_path)
-                    
-        except (ClientError, NoCredentialsError) as e:
-            raise RuntimeError(f"S3 upload failed: {str(e)}")
+            # Upload GeoJSON to S3
+            aoi_key = f"{s3_prefix}/aoi.geojson"
+            self.s3_client.upload_file(geojson_path, self.bucket_name, aoi_key)
+            
+            # Set published URLs in the analysis object
+            analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{cog_key}"
+            analysis._published_vector_url = f"s3://{self.bucket_name}/{aoi_key}"
+            
+            # Clean up temporary COG file
+            os.unlink(cog_path)
+            
+            # Return S3 URLs
+            s3_urls = [
+                analysis._published_dnbr_raster_url,
+                analysis._published_vector_url
+            ]
+            
+            return s3_urls
+            
         except Exception as e:
-            raise RuntimeError(f"Publishing failed: {str(e)}")
+            raise RuntimeError(f"Failed to publish analysis to S3: {str(e)}")
+    
+    def _generate_cog_from_file(self, input_path: str) -> str:
+        """
+        Generate Cloud Optimized GeoTIFF from input file.
+        
+        Args:
+            input_path: Path to input raster file
+            
+        Returns:
+            Path to generated COG file
+        """
+        with rasterio.open(input_path) as src:
+            # Create temporary file for COG
+            with tempfile.NamedTemporaryFile(suffix='.tif', delete=False) as tmp_file:
+                cog_path = tmp_file.name
+            
+            # Copy with COG-optimized settings
+            with rasterio.open(
+                cog_path, 'w',
+                driver='GTiff',
+                height=src.height,
+                width=src.width,
+                count=src.count,
+                dtype=src.dtypes[0],
+                crs=src.crs,
+                transform=src.transform,
+                tiled=True,
+                blockxsize=512,
+                blockysize=512,
+                compress='lzw',
+                overview_level=5,
+                overview_resampling='nearest'
+            ) as dst:
+                dst.write(src.read())
+                
+                # Build overviews
+                dst.build_overviews([2, 4, 8, 16, 32], rasterio.enums.Resampling.nearest)
+        
+        return cog_path
 
 
-def create_publisher(publisher_type: str = "s3", **kwargs) -> AnalysisPublisher:
+def create_s3_publisher(bucket_name: str, region: str = "ap-southeast-2", s3_client=None) -> S3AnalysisPublisher:
     """
-    Factory function to create appropriate publisher.
+    Create an S3 publisher for publishing analysis data.
     
     Args:
-        publisher_type: Publisher type ("s3")
-        **kwargs: Additional arguments for publisher initialization
+        bucket_name: S3 bucket name
+        region: AWS region (default: ap-southeast-2)
+        s3_client: Optional S3 client instance
         
     Returns:
-        AnalysisPublisher instance
+        S3AnalysisPublisher instance
     """
-    if publisher_type == "s3":
-        bucket_name = kwargs.get("bucket_name", "fire-severity-analyses")
-        region = kwargs.get("region", "us-east-1")
-        s3_client = kwargs.get("s3_client")
-        return S3AnalysisPublisher(bucket_name, region, s3_client)
-    else:
-        raise ValueError(f"Unknown publisher type: {publisher_type}") 
+    if not bucket_name:
+        raise ValueError("bucket_name is required")
+    return S3AnalysisPublisher(bucket_name, region, s3_client) 

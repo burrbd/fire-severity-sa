@@ -71,8 +71,8 @@ class AnalysisService:
         Args:
             analysis: Analysis object to store
         """
-        # Convert analysis to DynamoDB item format
-        item = analysis.to_dynamodb_item()
+        # Convert analysis to DynamoDB format
+        item = self._to_dynamodb_item(analysis)
         
         # Store in DynamoDB
         self.dynamodb.put_item(
@@ -100,7 +100,7 @@ class AnalysisService:
             return None
         
         # Convert DynamoDB item to analysis object
-        return DNBRAnalysis.from_dynamodb_item(response['Item'])
+        return self._from_dynamodb_item(response['Item'])
     
     def list_analyses(self, limit: int = 100) -> List[DNBRAnalysis]:
         """
@@ -118,7 +118,7 @@ class AnalysisService:
         )
         
         # Convert DynamoDB items to analysis objects
-        return [DNBRAnalysis.from_dynamodb_item(item) for item in response.get('Items', [])]
+        return [self._from_dynamodb_item(item) for item in response.get('Items', [])]
     
     def update_analysis_status(self, analysis_id: str, status: str) -> bool:
         """
@@ -141,4 +141,67 @@ class AnalysisService:
                 ':updated_at': {'S': datetime.utcnow().isoformat()}
             }
         )
-        return True 
+        return True
+    
+    def _to_dynamodb_item(self, analysis: DNBRAnalysis) -> dict:
+        """
+        Convert analysis object to DynamoDB item format.
+        
+        Args:
+            analysis: Analysis object
+            
+        Returns:
+            DynamoDB item dictionary
+        """
+        import json
+        from datetime import datetime
+        
+        # Get JSON data from analysis
+        json_data = json.loads(analysis.to_json())
+        
+        item = {
+            'analysis_id': {'S': analysis.get_id()},
+            'status': {'S': analysis.status},
+            'generator_type': {'S': analysis.generator_type},
+            'raw_raster_path': {'S': analysis.raw_raster_path or ''},
+            'published_dnbr_raster_url': {'S': analysis.published_dnbr_raster_url or ''},
+            'published_vector_url': {'S': analysis.published_vector_url or ''},
+            'created_at': {'S': analysis.get_created_at()},
+            'updated_at': {'S': datetime.utcnow().isoformat()}
+        }
+        
+        # Add fire metadata if present
+        if analysis.fire_metadata:
+            item['fire_metadata'] = {'S': json.dumps(analysis.fire_metadata.to_dict())}
+        
+        return item
+    
+    def _from_dynamodb_item(self, item: dict) -> DNBRAnalysis:
+        """
+        Convert DynamoDB item format to analysis object.
+        
+        Args:
+            item: DynamoDB item dictionary
+            
+        Returns:
+            Analysis object
+        """
+        import json
+        
+        # Build JSON data for analysis reconstruction
+        json_data = {
+            'id': item['analysis_id']['S'],
+            'status': item.get('status', {}).get('S', 'PENDING'),
+            'generator_type': item.get('generator_type', {}).get('S', 'unknown'),
+            'raw_raster_path': item.get('raw_raster_path', {}).get('S'),
+            'published_dnbr_raster_url': item.get('published_dnbr_raster_url', {}).get('S'),
+            'published_vector_url': item.get('published_vector_url', {}).get('S'),
+            'created_at': item.get('created_at', {}).get('S', '')
+        }
+        
+        # Add fire metadata if present
+        if 'fire_metadata' in item:
+            json_data['fire_metadata'] = json.loads(item['fire_metadata']['S'])
+        
+        # Use existing from_json method
+        return DNBRAnalysis.from_json(json.dumps(json_data)) 

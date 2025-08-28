@@ -11,7 +11,7 @@ import geopandas as gpd
 from scripts.generate_dnbr_utils import load_aoi
 from dnbr.generators import generate_dnbr
 from dnbr.analysis_service import create_analysis_service
-from dnbr.publisher import create_publisher
+from dnbr.publisher import create_s3_publisher
 from dnbr.fire_metadata import create_fire_metadata
 
 
@@ -83,10 +83,9 @@ def main():
     if s3_bucket:
         print(f"☁️ Publishing analysis to S3 bucket: {s3_bucket}")
         try:
-            publisher = create_publisher(
-                "s3", 
+            publisher = create_s3_publisher(
                 bucket_name=s3_bucket,
-                region=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+                region=os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-2')
             )
             s3_urls = publisher.publish_analysis(analysis, aoi_path)
             print(f"✅ Analysis published to S3:")
