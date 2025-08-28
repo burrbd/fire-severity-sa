@@ -17,7 +17,7 @@ from shapely.geometry import Polygon
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.generate_dnbr_analysis import main as generate_dnbr_analysis_main
-from scripts.download_dnbr_analysis import main as download_dnbr_analysis_main, download_dnbr_data
+from scripts.publish_dnbr_analysis import main as publish_dnbr_analysis_main, publish_dnbr_data
 from scripts.generate_map_shell import main as generate_map_shell_main
 from dnbr.analysis import DNBRAnalysis
 
@@ -140,8 +140,8 @@ class TestGenerateDNBRAnalysisScript:
         assert exc_info.value.code == 1  # script error code
 
 
-class TestDownloadDNBRAnalysisScript:
-    """Test the download_dnbr_analysis.py script."""
+class TestPublishDNBRAnalysisScript:
+    """Test the publish_dnbr_analysis.py script."""
     
     def setup_method(self):
         """Set up test data."""
@@ -160,14 +160,12 @@ class TestDownloadDNBRAnalysisScript:
         """Clean up test data."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-
-    
-    @patch('sys.argv', ['download_dnbr_analysis.py'])
-    def test_download_dnbr_analysis_no_arguments(self):
+    @patch('sys.argv', ['publish_dnbr_analysis.py'])
+    def test_publish_dnbr_analysis_no_arguments(self):
         """Test script with no arguments."""
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             with pytest.raises(SystemExit) as exc_info:
-                download_dnbr_analysis_main()
+                publish_dnbr_analysis_main()
         
         assert exc_info.value.code == 2  # argparse error code
 

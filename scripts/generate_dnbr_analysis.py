@@ -101,7 +101,7 @@ def main():
     print(f"🔗 Analysis ID: {analysis.get_id()}")
     
     print("🎉 dNBR analysis generation completed successfully!")
-    print("💡 To download data and generate map, run the download-dnbr-job action")
+    print("💡 To publish data to S3, run the publish-dnbr-analysis action")
 
 
 if __name__ == "__main__":

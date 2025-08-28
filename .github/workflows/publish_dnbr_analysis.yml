@@ -1,0 +1,61 @@
+name: ☁️ Manual - Publish dNBR Analysis to S3
+
+on:
+  workflow_dispatch:
+    inputs:
+      analysis_id:
+        description: 'Analysis ID from previous action'
+        required: true
+        type: string
+      aoi_path:
+        description: 'Path to AOI GeoJSON file (default: data/dummy_data/fire.geojson)'
+        required: false
+        default: 'data/dummy_data/fire.geojson'
+        type: string
+
+jobs:
+  publish-dnbr-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}
+    
+    - name: Publish dNBR data to S3
+      run: |
+        echo "🔧 Using analysis ID: ${{ inputs.analysis_id }}"
+        echo "📁 Using AOI path: ${{ inputs.aoi_path }}"
+        echo "☁️ Using S3 bucket: ${{ vars.AWS_S3_BUCKET_NAME }}"
+        echo "🌍 Using AWS region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}"
+        
+        # Publish data to S3
+        python scripts/publish_dnbr_analysis.py \
+          --analysis-id ${{ inputs.analysis_id }} \
+          --aoi-path "${{ inputs.aoi_path }}"
+    
+    - name: Output analysis information
+      run: |
+        echo "✅ Publishing completed successfully!"
+        echo "📊 Analysis ID: ${{ inputs.analysis_id }}"
+        echo "☁️ S3 Bucket: ${{ vars.AWS_S3_BUCKET_NAME }}"
+        echo "🌍 Region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}"
+        echo ""
+        echo "💡 The analysis data has been published to S3 and the database has been updated with the S3 URLs."
+        echo "🔗 You can now access the data via the S3 URLs stored in the analysis record."

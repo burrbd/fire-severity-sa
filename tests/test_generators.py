@@ -38,7 +38,7 @@ class TestGenerators:
         # Verify analysis properties
         assert isinstance(analysis, DNBRAnalysis)
         assert analysis.get_id() is not None
-        assert analysis.status == "PENDING"
+        assert analysis.status == "COMPLETED"  # Dummy generator is synchronous
         assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
     
     def test_create_dnbr_generator_invalid(self):
@@ -62,7 +62,7 @@ class TestGenerators:
         analysis = generate_dnbr(aoi_gdf, method="dummy")
         assert isinstance(analysis, DNBRAnalysis)
         assert analysis.get_id() is not None
-        assert analysis.status == "PENDING"  # Default status
+        assert analysis.status == "COMPLETED"  # Dummy generator is synchronous
         assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
     
     def test_create_dnbr_generator_gee(self):

@@ -46,4 +46,7 @@ class DummyDNBRGenerator(DNBRGenerator):
         # The publisher will handle reading this file and converting to COG
         analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
         
+        # Set status to COMPLETED since dummy data is always available synchronously
+        analysis.set_status("COMPLETED")
+        
         return analysis 
