@@ -146,6 +146,7 @@ class DNBRAnalysis:
         Returns:
             Dictionary in DynamoDB item format
         """
+        import json
         from datetime import datetime
         
         item = {
@@ -161,7 +162,7 @@ class DNBRAnalysis:
         
         # Add fire metadata if present
         if self.fire_metadata:
-            item['fire_metadata'] = {'S': self.fire_metadata.to_dict()}
+            item['fire_metadata'] = {'S': json.dumps(self.fire_metadata.to_dict())}
         
         return item
     

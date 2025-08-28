@@ -30,7 +30,7 @@ def create_analysis_service(table_name: str = None, region: str = None):
     """
     # Get configuration from environment variables or use defaults
     table_name = table_name or os.getenv('AWS_DYNAMODB_TABLE_NAME', 'fire-severity-analyses-dev')
-    region = region or os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+    region = region or os.getenv('AWS_DEFAULT_REGION', 'ap-southeast-2')
     
     try:
         # Create DynamoDB client
