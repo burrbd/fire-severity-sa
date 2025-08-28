@@ -53,7 +53,7 @@ class TestGenerateDNBRAnalysisScript:
         mock_analysis.get_id.return_value = "test_analysis_id"
         mock_analysis.status = "COMPLETED"  # Property, not method
         mock_generate_dnbr.return_value = mock_analysis
-    
+        
         # Mock the AOI loading
         mock_gdf = MagicMock()
         mock_gdf.__len__ = lambda x: 1
@@ -62,14 +62,14 @@ class TestGenerateDNBRAnalysisScript:
         # Mock the analysis service
         mock_service = MagicMock()
         mock_create_service.return_value = mock_service
-    
+        
         # Test the main function
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             generate_dnbr_analysis_main()
         
         # Verify the functions were called correctly
         mock_load_aoi.assert_called_once_with('data/fire.geojson')
-        mock_generate_dnbr.assert_called_once_with(mock_gdf, method='dummy')
+        mock_generate_dnbr.assert_called_once_with(mock_gdf, method='dummy', data_path='data/fire.geojson', fire_metadata=None)
         mock_create_service.assert_called_once()
         mock_service.store_analysis.assert_called_once_with(mock_analysis)
     
@@ -233,13 +233,19 @@ class TestAnalysisIntegration:
         # Test core properties
         assert hasattr(analysis, 'get_id')
         assert hasattr(analysis, 'status')
-        assert hasattr(analysis, 'raster_urls')
+        assert hasattr(analysis, 'fire_metadata')
+        assert hasattr(analysis, 'raw_raster_path')
+        assert hasattr(analysis, 'published_dnbr_raster_url')
+        assert hasattr(analysis, 'published_vector_url')
         assert hasattr(analysis, 'to_json')
         
         # Test property types
         assert isinstance(analysis.get_id(), str)
         assert isinstance(analysis.status, str)
-        assert isinstance(analysis.raster_urls, list)
+        assert analysis.fire_metadata is None  # Initially None
+        assert analysis.raw_raster_path is None  # Initially None
+        assert analysis.published_dnbr_raster_url is None  # Initially None
+        assert analysis.published_vector_url is None  # Initially None
         
         # Test JSON serialization
         json_str = analysis.to_json()
@@ -249,4 +255,7 @@ class TestAnalysisIntegration:
         data = json.loads(json_str)
         assert 'id' in data
         assert 'status' in data
-        assert 'raster_urls' in data 
+        assert 'fire_metadata' in data
+        assert 'raw_raster_path' in data
+        assert 'published_dnbr_raster_url' in data
+        assert 'published_vector_url' in data 

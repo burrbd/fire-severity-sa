@@ -71,15 +71,8 @@ class AnalysisService:
         Args:
             analysis: Analysis object to store
         """
-        # Prepare item for DynamoDB
-        item = {
-            'analysis_id': {'S': analysis.get_id()},
-            'status': {'S': analysis.status},
-            'generator_type': {'S': analysis.generator_type},
-            'raster_urls': {'L': [{'S': url} for url in analysis.raster_urls]},
-            'created_at': {'S': datetime.utcnow().isoformat()},
-            'updated_at': {'S': datetime.utcnow().isoformat()}
-        }
+        # Convert analysis to DynamoDB item format
+        item = analysis.to_dynamodb_item()
         
         # Store in DynamoDB
         self.dynamodb.put_item(
@@ -106,17 +99,8 @@ class AnalysisService:
         if 'Item' not in response:
             return None
         
-        item = response['Item']
-        
-        # Create a concrete analysis object
-        analysis = DNBRAnalysis()
-        analysis._id = item['analysis_id']['S']
-        
-        # Extract raster URLs
-        if 'raster_urls' in item:
-            analysis._raster_urls = [url['S'] for url in item['raster_urls']['L']]
-        
-        return analysis
+        # Convert DynamoDB item to analysis object
+        return DNBRAnalysis.from_dynamodb_item(response['Item'])
     
     def list_analyses(self, limit: int = 100) -> List[DNBRAnalysis]:
         """
@@ -133,17 +117,8 @@ class AnalysisService:
             Limit=limit
         )
         
-        analyses = []
-        for item in response.get('Items', []):
-            analysis = DNBRAnalysis()
-            analysis._id = item['analysis_id']['S']
-            
-            if 'raster_urls' in item:
-                analysis._raster_urls = [url['S'] for url in item['raster_urls']['L']]
-            
-            analyses.append(analysis)
-        
-        return analyses
+        # Convert DynamoDB items to analysis objects
+        return [DNBRAnalysis.from_dynamodb_item(item) for item in response.get('Items', [])]
     
     def update_analysis_status(self, analysis_id: str, status: str) -> bool:
         """

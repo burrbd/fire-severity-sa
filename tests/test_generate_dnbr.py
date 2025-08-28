@@ -168,13 +168,19 @@ class TestAnalysisMetadata:
         # Test core properties
         assert hasattr(analysis, 'get_id')
         assert hasattr(analysis, 'status')
-        assert hasattr(analysis, 'raster_urls')
+        assert hasattr(analysis, 'fire_metadata')
+        assert hasattr(analysis, 'raw_raster_path')
+        assert hasattr(analysis, 'published_dnbr_raster_url')
+        assert hasattr(analysis, 'published_vector_url')
         assert hasattr(analysis, 'to_json')
         
         # Test property types
         assert isinstance(analysis.get_id(), str)
         assert isinstance(analysis.status, str)
-        assert isinstance(analysis.raster_urls, list)
+        assert analysis.fire_metadata is None  # Initially None
+        assert analysis.raw_raster_path is None  # Initially None
+        assert analysis.published_dnbr_raster_url is None  # Initially None
+        assert analysis.published_vector_url is None  # Initially None
         
         # Test JSON serialization
         json_str = analysis.to_json()
@@ -184,4 +190,7 @@ class TestAnalysisMetadata:
         data = json.loads(json_str)
         assert 'id' in data
         assert 'status' in data
-        assert 'raster_urls' in data 
+        assert 'fire_metadata' in data
+        assert 'raw_raster_path' in data
+        assert 'published_dnbr_raster_url' in data
+        assert 'published_vector_url' in data 

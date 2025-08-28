@@ -8,6 +8,7 @@ from unittest.mock import Mock, MagicMock, patch
 from botocore.exceptions import ClientError, NoCredentialsError
 from dnbr.analysis_service import AnalysisService, create_analysis_service
 from dnbr.analysis import DNBRAnalysis
+from dnbr.fire_metadata import SAFireMetadata
 
 
 class TestAnalysisService:
@@ -23,7 +24,9 @@ class TestAnalysisService:
         
         # Create a test analysis
         self.test_analysis = DNBRAnalysis()
-        self.test_analysis._raster_urls = ["s3://test/fire_severity.tif"]
+        self.test_analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        self.test_analysis._published_dnbr_raster_url = "s3://test/fire_severity.tif"
+        self.test_analysis._published_vector_url = "s3://test/fire.geojson"
     
     def test_store_analysis(self):
         """Test storing an analysis."""
@@ -39,10 +42,30 @@ class TestAnalysisService:
         
         assert item['analysis_id']['S'] == self.test_analysis.get_id()
         assert item['status']['S'] == self.test_analysis.status
-        assert len(item['raster_urls']['L']) == 1
-        assert item['raster_urls']['L'][0]['S'] == "s3://test/fire_severity.tif"
+        assert item['raw_raster_path']['S'] == "data/dummy_data/raw_dnbr.tif"
+        assert item['published_dnbr_raster_url']['S'] == "s3://test/fire_severity.tif"
+        assert item['published_vector_url']['S'] == "s3://test/fire.geojson"
         assert 'created_at' in item
         assert 'updated_at' in item
+    
+    def test_store_analysis_with_fire_metadata(self):
+        """Test storing an analysis with fire metadata."""
+        # Create analysis with fire metadata
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata)
+        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        
+        # Act
+        self.service.store_analysis(analysis)
+        
+        # Assert
+        self.mock_dynamodb.put_item.assert_called_once()
+        call_args = self.mock_dynamodb.put_item.call_args
+        item = call_args[1]['Item']
+        
+        assert 'fire_metadata' in item
+        assert item['fire_metadata']['S']['provider'] == 'sa_fire'
+        assert item['fire_metadata']['S']['fire_id'] == 'bushfire_20191230'
     
     def test_get_analysis_found(self):
         """Test retrieving an existing analysis."""
@@ -51,7 +74,9 @@ class TestAnalysisService:
             'Item': {
                 'analysis_id': {'S': 'test-id'},
                 'status': {'S': 'COMPLETED'},
-                'raster_urls': {'L': [{'S': 's3://test/fire_severity.tif'}]}
+                'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'},
+                'published_dnbr_raster_url': {'S': 's3://test/fire_severity.tif'},
+                'published_vector_url': {'S': 's3://test/fire.geojson'}
             }
         }
         self.mock_dynamodb.get_item.return_value = mock_response
@@ -62,12 +87,46 @@ class TestAnalysisService:
         # Assert
         assert result is not None
         assert result.get_id() == 'test-id'
-        assert result.raster_urls == ['s3://test/fire_severity.tif']
+        assert result.raw_raster_path == 'data/dummy_data/raw_dnbr.tif'
+        assert result.published_dnbr_raster_url == 's3://test/fire_severity.tif'
+        assert result.published_vector_url == 's3://test/fire.geojson'
         
         self.mock_dynamodb.get_item.assert_called_once_with(
             TableName='test-table',
             Key={'analysis_id': {'S': 'test-id'}}
         )
+    
+    def test_get_analysis_with_fire_metadata(self):
+        """Test retrieving an analysis with fire metadata."""
+        # Arrange
+        fire_metadata_dict = {
+            'provider': 'sa_fire',
+            'fire_id': 'bushfire_20191230',
+            'fire_date': '30/12/2019',
+            'provider_metadata': {
+                'incident_type': 'Bushfire',
+                'raw_properties': {'test': 'data'}
+            }
+        }
+        mock_response = {
+            'Item': {
+                'analysis_id': {'S': 'test-id'},
+                'status': {'S': 'COMPLETED'},
+                'fire_metadata': {'S': fire_metadata_dict},
+                'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'}
+            }
+        }
+        self.mock_dynamodb.get_item.return_value = mock_response
+        
+        # Act
+        result = self.service.get_analysis('test-id')
+        
+        # Assert
+        assert result is not None
+        assert result.get_id() == 'test-id'
+        assert result.get_fire_id() == 'bushfire_20191230'
+        assert result.get_fire_date() == '30/12/2019'
+        assert result.get_provider() == 'sa_fire'
     
     def test_get_analysis_not_found(self):
         """Test retrieving a non-existent analysis."""
@@ -87,11 +146,12 @@ class TestAnalysisService:
             'Items': [
                 {
                     'analysis_id': {'S': 'id1'},
-                    'raster_urls': {'L': []}
+                    'raw_raster_path': {'S': ''}
                 },
                 {
                     'analysis_id': {'S': 'id2'},
-                    'raster_urls': {'L': [{'S': 's3://test/file.tif'}]}
+                    'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'},
+                    'published_dnbr_raster_url': {'S': 's3://test/file.tif'}
                 }
             ]
         }
@@ -104,7 +164,8 @@ class TestAnalysisService:
         assert len(result) == 2
         assert result[0].get_id() == 'id1'
         assert result[1].get_id() == 'id2'
-        assert result[1].raster_urls == ['s3://test/file.tif']
+        assert result[1].raw_raster_path == 'data/dummy_data/raw_dnbr.tif'
+        assert result[1].published_dnbr_raster_url == 's3://test/file.tif'
         
         self.mock_dynamodb.scan.assert_called_once_with(
             TableName='test-table',

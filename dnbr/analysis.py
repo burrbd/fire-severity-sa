@@ -138,3 +138,66 @@ class DNBRAnalysis:
         analysis._published_vector_url = data.get("published_vector_url")
         
         return analysis 
+
+    def to_dynamodb_item(self) -> dict:
+        """
+        Convert analysis to DynamoDB item format.
+        
+        Returns:
+            Dictionary in DynamoDB item format
+        """
+        from datetime import datetime
+        
+        item = {
+            'analysis_id': {'S': self.get_id()},
+            'status': {'S': self.status},
+            'generator_type': {'S': self.generator_type},
+            'raw_raster_path': {'S': self.raw_raster_path or ''},
+            'published_dnbr_raster_url': {'S': self.published_dnbr_raster_url or ''},
+            'published_vector_url': {'S': self.published_vector_url or ''},
+            'created_at': {'S': self.get_created_at()},
+            'updated_at': {'S': datetime.utcnow().isoformat()}
+        }
+        
+        # Add fire metadata if present
+        if self.fire_metadata:
+            item['fire_metadata'] = {'S': self.fire_metadata.to_dict()}
+        
+        return item
+    
+    @classmethod
+    def from_dynamodb_item(cls, item: dict) -> 'DNBRAnalysis':
+        """
+        Create analysis from DynamoDB item.
+        
+        Args:
+            item: DynamoDB item dictionary
+            
+        Returns:
+            DNBRAnalysis instance
+        """
+        # Create analysis object from JSON if fire_metadata is present
+        if 'fire_metadata' in item:
+            # Reconstruct the full JSON and use from_json
+            json_data = {
+                'id': item['analysis_id']['S'],
+                'status': item.get('status', {}).get('S', 'PENDING'),
+                'generator_type': item.get('generator_type', {}).get('S', 'unknown'),
+                'fire_metadata': item['fire_metadata']['S'],
+                'raw_raster_path': item.get('raw_raster_path', {}).get('S'),
+                'published_dnbr_raster_url': item.get('published_dnbr_raster_url', {}).get('S'),
+                'published_vector_url': item.get('published_vector_url', {}).get('S'),
+                'created_at': item.get('created_at', {}).get('S', '')
+            }
+            import json
+            return cls.from_json(json.dumps(json_data))
+        else:
+            # Create a basic analysis object
+            analysis = cls()
+            analysis._id = item['analysis_id']['S']
+            analysis._status = item.get('status', {}).get('S', 'PENDING')
+            analysis._generator_type = item.get('generator_type', {}).get('S', 'unknown')
+            analysis._raw_raster_path = item.get('raw_raster_path', {}).get('S')
+            analysis._published_dnbr_raster_url = item.get('published_dnbr_raster_url', {}).get('S')
+            analysis._published_vector_url = item.get('published_vector_url', {}).get('S')
+            return analysis 

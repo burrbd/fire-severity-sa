@@ -237,6 +237,119 @@ class TestDNBRAnalysis:
         assert analysis.get_id() == "01K33HZPY7ZSXN7CTR8JQ7JBG5"
         mock_ulid.ULID.assert_called_once()
 
+    def test_to_dynamodb_item_without_metadata(self):
+        """Test converting analysis to DynamoDB item without fire metadata."""
+        analysis = DNBRAnalysis(generator_type="dummy")
+        analysis._raw_raster_path = "test/path.tif"
+        analysis._published_dnbr_raster_url = "s3://bucket/file.tif"
+        analysis._published_vector_url = "s3://bucket/file.geojson"
+        
+        item = analysis.to_dynamodb_item()
+        
+        assert item["analysis_id"]["S"] == analysis.get_id()
+        assert item["status"]["S"] == "PENDING"
+        assert item["generator_type"]["S"] == "dummy"
+        assert item["raw_raster_path"]["S"] == "test/path.tif"
+        assert item["published_dnbr_raster_url"]["S"] == "s3://bucket/file.tif"
+        assert item["published_vector_url"]["S"] == "s3://bucket/file.geojson"
+        assert "fire_metadata" not in item
+        assert "created_at" in item
+        assert "updated_at" in item
+    
+    def test_to_dynamodb_item_with_metadata(self):
+        """Test converting analysis to DynamoDB item with fire metadata."""
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
+        analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
+        analysis._raw_raster_path = "test/path.tif"
+        
+        item = analysis.to_dynamodb_item()
+        
+        assert item["analysis_id"]["S"] == analysis.get_id()
+        assert item["status"]["S"] == "PENDING"
+        assert item["generator_type"]["S"] == "dummy"
+        assert item["raw_raster_path"]["S"] == "test/path.tif"
+        assert "fire_metadata" in item
+        assert item["fire_metadata"]["S"]["provider"] == "sa_fire"
+        assert item["fire_metadata"]["S"]["fire_id"] == "bushfire_20191230"
+    
+    def test_from_dynamodb_item_without_metadata(self):
+        """Test creating analysis from DynamoDB item without fire metadata."""
+        item = {
+            'analysis_id': {'S': 'test-id'},
+            'status': {'S': 'COMPLETED'},
+            'generator_type': {'S': 'dummy'},
+            'raw_raster_path': {'S': 'test/path.tif'},
+            'published_dnbr_raster_url': {'S': 's3://bucket/file.tif'},
+            'published_vector_url': {'S': 's3://bucket/file.geojson'},
+            'created_at': {'S': '2023-01-01T00:00:00'}
+        }
+        
+        analysis = DNBRAnalysis.from_dynamodb_item(item)
+        
+        assert analysis.get_id() == 'test-id'
+        assert analysis.status == 'COMPLETED'
+        assert analysis.generator_type == 'dummy'
+        assert analysis.raw_raster_path == 'test/path.tif'
+        assert analysis.published_dnbr_raster_url == 's3://bucket/file.tif'
+        assert analysis.published_vector_url == 's3://bucket/file.geojson'
+        assert analysis.fire_metadata is None
+    
+    def test_from_dynamodb_item_with_metadata(self):
+        """Test creating analysis from DynamoDB item with fire metadata."""
+        fire_metadata_dict = {
+            'provider': 'sa_fire',
+            'fire_id': 'bushfire_20191230',
+            'fire_date': '30/12/2019',
+            'provider_metadata': {
+                'incident_type': 'Bushfire',
+                'raw_properties': {'test': 'data'}
+            }
+        }
+        
+        item = {
+            'analysis_id': {'S': 'test-id'},
+            'status': {'S': 'COMPLETED'},
+            'generator_type': {'S': 'dummy'},
+            'fire_metadata': {'S': fire_metadata_dict},
+            'raw_raster_path': {'S': 'test/path.tif'},
+            'created_at': {'S': '2023-01-01T00:00:00'}
+        }
+        
+        analysis = DNBRAnalysis.from_dynamodb_item(item)
+        
+        assert analysis.get_id() == 'test-id'
+        assert analysis.status == 'COMPLETED'
+        assert analysis.generator_type == 'dummy'
+        assert analysis.raw_raster_path == 'test/path.tif'
+        assert analysis.get_fire_id() == 'bushfire_20191230'
+        assert analysis.get_fire_date() == '30/12/2019'
+        assert analysis.get_provider() == 'sa_fire'
+    
+    def test_dynamodb_serialization_roundtrip(self):
+        """Test full roundtrip serialization to and from DynamoDB item."""
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
+        original_analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
+        original_analysis._raw_raster_path = "test/path.tif"
+        original_analysis._published_dnbr_raster_url = "s3://bucket/file.tif"
+        original_analysis._published_vector_url = "s3://bucket/file.geojson"
+        
+        # Serialize to DynamoDB item
+        item = original_analysis.to_dynamodb_item()
+        
+        # Deserialize from DynamoDB item
+        reconstructed_analysis = DNBRAnalysis.from_dynamodb_item(item)
+        
+        # Verify all properties are preserved
+        assert reconstructed_analysis.get_id() == original_analysis.get_id()
+        assert reconstructed_analysis.status == original_analysis.status
+        assert reconstructed_analysis.generator_type == original_analysis.generator_type
+        assert reconstructed_analysis.raw_raster_path == original_analysis.raw_raster_path
+        assert reconstructed_analysis.published_dnbr_raster_url == original_analysis.published_dnbr_raster_url
+        assert reconstructed_analysis.published_vector_url == original_analysis.published_vector_url
+        assert reconstructed_analysis.get_fire_id() == original_analysis.get_fire_id()
+        assert reconstructed_analysis.get_fire_date() == original_analysis.get_fire_date()
+        assert reconstructed_analysis.get_provider() == original_analysis.get_provider()
+
 
 class TestDNBRAnalysisIntegration:
     """Integration tests for DNBRAnalysis."""
