@@ -35,8 +35,8 @@ jobs:
         JOB_TYPE="${{ vars.DNBR_JOB_TYPE || 'dummy' }}"
         
         # Execute dNBR analysis job and capture job ID
-        echo "🔍 Running script with path: data/dummy_data/fire.geojson"
-        script_output=$(python scripts/dnbr_analysis_job.py data/dummy_data/fire.geojson $JOB_TYPE)
+        echo "🔍 Running script with path: data/dummy_data/fires.geojson"
+        script_output=$(python scripts/dnbr_analysis_job.py data/dummy_data/fires.geojson $JOB_TYPE)
         echo "📄 Script output:"
         echo "$script_output"
         
