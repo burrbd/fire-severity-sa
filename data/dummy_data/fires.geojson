@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[138.5, -34.2], [138.7, -34.2], [138.7, -34.0], [138.5, -34.0], [138.5, -34.2]]]
+      },
+      "properties": {
+        "INCIDENTTY": "Bushfire",
+        "FIREDATE": "03/12/2019",
+        "INCIDENTNU": "12345",
+        "name": "Fire 1"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[138.7, -34.0], [138.9, -34.0], [138.9, -33.8], [138.7, -33.8], [138.7, -34.0]]]
+      },
+      "properties": {
+        "INCIDENTTY": "Bushfire",
+        "FIREDATE": "04/12/2019",
+        "INCIDENTNU": "12346",
+        "name": "Fire 2"
+      }
+    }
+  ]
+}

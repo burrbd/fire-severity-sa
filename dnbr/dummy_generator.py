@@ -13,9 +13,8 @@ from .fire_metadata import FireMetadata, create_fire_metadata
 class DummyDNBRGenerator(DNBRGenerator):
     """Dummy dNBR generator for testing and development."""
     
-    def __init__(self, output_dir: str = "docs/outputs", fire_metadata: FireMetadata = None):
+    def __init__(self, fire_metadata: FireMetadata = None):
         super().__init__(fire_metadata)
-        self.output_dir = output_dir
     
     def generate_dnbr(self, aoi_gdf: gpd.GeoDataFrame, data_path: str = None) -> DNBRAnalysis:
         """

@@ -44,6 +44,19 @@ class FireMetadata(ABC):
         pass
     
     @abstractmethod
+    def generate_filename(self, file_type: str) -> str:
+        """
+        Generate standardized filename for STAC.
+        
+        Args:
+            file_type: Type of file ("raster", "vector", etc.)
+            
+        Returns:
+            Generated filename string
+        """
+        pass
+    
+    @abstractmethod
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert metadata to dictionary for serialization.
@@ -134,15 +147,46 @@ class SAFireMetadata(FireMetadata):
         """Get the data provider name."""
         return "sa_fire"
     
+    def generate_filename(self, file_type: str) -> str:
+        """
+        Generate standardized filename for STAC.
+        
+        Args:
+            file_type: Type of file ("raster", "vector", etc.)
+            
+        Returns:
+            Generated filename string
+        """
+        if file_type == "raster":
+            return f"{self._aoi_id}_dnbr.cog.tif"
+        elif file_type == "vector":
+            return f"{self._aoi_id}_aoi.geojson"
+        else:
+            return f"{self._aoi_id}_{file_type}"
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert metadata to dictionary for serialization."""
+        # Filter out non-serializable properties (like Shapely geometry objects)
+        serializable_properties = {}
+        for key, value in self.raw_properties.items():
+            # Skip geometry objects and other non-serializable types
+            if not hasattr(value, '__geo_interface__') and not hasattr(value, 'wkt'):
+                try:
+                    # Test if the value is JSON serializable
+                    import json
+                    json.dumps(value)
+                    serializable_properties[key] = value
+                except (TypeError, ValueError):
+                    # Skip non-serializable values
+                    continue
+        
         return {
             "aoi_id": self._aoi_id,
             "fire_date": self.fire_date,
             "provider": self.get_provider(),
             "provider_metadata": {
                 "incident_type": self.incident_type,
-                "raw_properties": self.raw_properties
+                "raw_properties": serializable_properties
             }
         }
     
@@ -210,5 +254,34 @@ def create_fire_metadata(provider: str = "sa_fire", **kwargs) -> FireMetadata:
             return SAFireMetadata.from_geojson(geojson_path)
         else:
             raise ValueError("geojson_path is required for sa_fire provider")
+    else:
+        raise ValueError(f"Unknown fire metadata provider: {provider}")
+
+
+def create_fire_metadata_from_feature(feature, provider: str = "sa_fire") -> FireMetadata:
+    """
+    Create FireMetadata from a single GeoJSON feature.
+    
+    Args:
+        feature: GeoJSON feature (dict or pandas Series)
+        provider: Data provider ("sa_fire", etc.)
+        
+    Returns:
+        FireMetadata instance
+    """
+    if provider == "sa_fire":
+        # Handle both dict and pandas Series
+        if hasattr(feature, 'to_dict'):
+            properties = feature.to_dict()
+        else:
+            properties = feature.get('properties', {})
+        
+        incident_type = properties.get('INCIDENTTY', 'Unknown')
+        fire_date = properties.get('FIREDATE', 'Unknown')
+        
+        if not fire_date or fire_date == 'Unknown':
+            raise ValueError("FIREDATE property is required")
+        
+        return SAFireMetadata(incident_type, fire_date, properties)
     else:
         raise ValueError(f"Unknown fire metadata provider: {provider}")

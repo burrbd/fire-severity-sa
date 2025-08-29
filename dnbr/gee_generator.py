@@ -12,9 +12,8 @@ from .fire_metadata import FireMetadata, create_fire_metadata
 class GEEDNBRGenerator(DNBRGenerator):
     """Google Earth Engine dNBR generator for real fire severity analysis."""
     
-    def __init__(self, output_dir: str = "docs/outputs", fire_metadata: FireMetadata = None):
+    def __init__(self, fire_metadata: FireMetadata = None):
         super().__init__(fire_metadata)
-        self.output_dir = output_dir
     
     def generate_dnbr(self, aoi_gdf: gpd.GeoDataFrame, data_path: str = None) -> DNBRAnalysis:
         """

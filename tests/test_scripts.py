@@ -44,19 +44,22 @@ class TestGenerateDNBRAnalysisScript:
     
     @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
     @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr')
+    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
     @patch('scripts.generate_dnbr_analysis.create_analysis_service')
-    def test_generate_dnbr_analysis_success(self, mock_create_service, mock_generate_dnbr, mock_load_aoi):
+    def test_generate_dnbr_analysis_success(self, mock_create_service, mock_generate_dnbr_batch, mock_load_aoi):
         """Test successful dNBR generation."""
-        # Mock the analysis object
-        mock_analysis = MagicMock()
-        mock_analysis.get_id.return_value = "test_analysis_id"
-        mock_analysis.status = "COMPLETED"  # Property, not method
-        mock_generate_dnbr.return_value = mock_analysis
+        # Mock the analysis objects
+        mock_analysis1 = MagicMock()
+        mock_analysis1.get_id.return_value = "test_analysis_id_1"
+        mock_analysis1.status = "COMPLETED"
+        mock_analysis2 = MagicMock()
+        mock_analysis2.get_id.return_value = "test_analysis_id_2"
+        mock_analysis2.status = "COMPLETED"
+        mock_generate_dnbr_batch.return_value = [mock_analysis1, mock_analysis2]
         
         # Mock the AOI loading
         mock_gdf = MagicMock()
-        mock_gdf.__len__ = lambda x: 1
+        mock_gdf.__len__ = lambda x: 2
         mock_load_aoi.return_value = mock_gdf
         
         # Mock the analysis service
@@ -69,9 +72,9 @@ class TestGenerateDNBRAnalysisScript:
         
         # Verify the functions were called correctly
         mock_load_aoi.assert_called_once_with('data/fire.geojson')
-        mock_generate_dnbr.assert_called_once_with(mock_gdf, method='dummy', data_path='data/fire.geojson', fire_metadata=None)
+        mock_generate_dnbr_batch.assert_called_once_with(mock_gdf, method='dummy', data_path='data/fire.geojson', provider='sa_fire')
         mock_create_service.assert_called_once()
-        mock_service.store_analysis.assert_called_once_with(mock_analysis)
+        assert mock_service.store_analysis.call_count == 2
     
     @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
     @patch('scripts.generate_dnbr_analysis.load_aoi')
@@ -87,16 +90,16 @@ class TestGenerateDNBRAnalysisScript:
     
     @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
     @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr')
-    def test_generate_dnbr_analysis_generation_failure(self, mock_generate_dnbr, mock_load_aoi):
+    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
+    def test_generate_dnbr_analysis_generation_failure(self, mock_generate_dnbr_batch, mock_load_aoi):
         """Test script when analysis generation fails."""
         # Mock successful AOI loading
         mock_gdf = MagicMock()
-        mock_gdf.__len__ = lambda x: 1
+        mock_gdf.__len__ = lambda x: 2
         mock_load_aoi.return_value = mock_gdf
         
         # Mock failed analysis generation
-        mock_generate_dnbr.side_effect = Exception("Generation failed")
+        mock_generate_dnbr_batch.side_effect = Exception("Generation failed")
         
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             with pytest.raises(SystemExit) as exc_info:
@@ -106,20 +109,20 @@ class TestGenerateDNBRAnalysisScript:
     
     @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
     @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr')
+    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
     @patch('scripts.generate_dnbr_analysis.create_analysis_service')
-    def test_generate_dnbr_analysis_storage_failure(self, mock_create_service, mock_generate_dnbr, mock_load_aoi):
+    def test_generate_dnbr_analysis_storage_failure(self, mock_create_service, mock_generate_dnbr_batch, mock_load_aoi):
         """Test script when DynamoDB storage fails."""
         # Mock successful AOI loading
         mock_gdf = MagicMock()
-        mock_gdf.__len__ = lambda x: 1
+        mock_gdf.__len__ = lambda x: 2
         mock_load_aoi.return_value = mock_gdf
         
         # Mock successful analysis generation
         mock_analysis = MagicMock()
         mock_analysis.get_id.return_value = "test_analysis_id"
         mock_analysis.status = "PENDING"
-        mock_generate_dnbr.return_value = mock_analysis
+        mock_generate_dnbr_batch.return_value = [mock_analysis]
         
         # Mock failed service creation
         mock_create_service.side_effect = Exception("Service creation failed")
