@@ -11,6 +11,8 @@ import rasterio
 from rasterio.io import MemoryFile
 import tempfile
 import os
+import json
+from datetime import datetime
 from .analysis import DNBRAnalysis
 
 
@@ -18,13 +20,12 @@ class AnalysisPublisher(ABC):
     """Abstract base class for publishing analysis results."""
     
     @abstractmethod
-    def publish_analysis(self, analysis: DNBRAnalysis, geojson_path: str) -> List[str]:
+    def publish_analysis(self, analysis: DNBRAnalysis) -> List[str]:
         """
         Publish analysis results.
         
         Args:
             analysis: Analysis object containing metadata and file paths
-            geojson_path: Path to the GeoJSON file to publish
             
         Returns:
             List of published URLs
@@ -38,7 +39,7 @@ class AnalysisPublisher(ABC):
 
 
 class S3AnalysisPublisher(AnalysisPublisher):
-    """S3 implementation of analysis publisher."""
+    """S3 implementation of analysis publisher with STAC structure."""
     
     def __init__(self, bucket_name: str, region: str = "ap-southeast-2", s3_client=None):
         """
@@ -55,7 +56,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
     
     def publish_analysis(self, analysis: DNBRAnalysis) -> List[str]:
         """
-        Publish analysis to S3.
+        Publish analysis to S3 with STAC structure.
         
         Args:
             analysis: Analysis object containing source vector URL and raw raster URL
@@ -88,21 +89,44 @@ class S3AnalysisPublisher(AnalysisPublisher):
         try:
             aoi_id = analysis.get_aoi_id()
             analysis_id = analysis.get_id()
+            fire_metadata = analysis.fire_metadata
             
-            # Create S3 key structure: <aoi_id>/<ulid>/dnbr.cog.tif
-            s3_prefix = f"{aoi_id}/{analysis_id}"
+            # Generate filenames using metadata
+            raster_filename = fire_metadata.generate_filename("raster")
+            vector_filename = fire_metadata.generate_filename("vector")
             
-            # Upload COG to S3
-            cog_key = f"{s3_prefix}/dnbr.cog.tif"
-            self.s3_client.upload_file(cog_path, self.bucket_name, cog_key)
+            # Create STAC structure:
+            # s3://bucket/jobs/{job_id}/{aoi_id}/dnbr.cog.tif
+            # s3://bucket/jobs/{job_id}/{aoi_id}/aoi.geojson
+            # s3://bucket/stac/collections/fires.json
+            # s3://bucket/stac/items/{job_id}/{aoi_id}.json
             
-            # Upload GeoJSON to S3
-            aoi_key = f"{s3_prefix}/aoi.geojson"
-            self.s3_client.upload_file(analysis.source_vector_url, self.bucket_name, aoi_key)
+            # Upload raw data to jobs directory
+            job_prefix = f"jobs/{analysis_id}/{aoi_id}"
+            raster_key = f"{job_prefix}/{raster_filename}"
+            vector_key = f"{job_prefix}/{vector_filename}"
+            
+            self.s3_client.upload_file(cog_path, self.bucket_name, raster_key)
+            self.s3_client.upload_file(analysis.source_vector_url, self.bucket_name, vector_key)
+            
+            # Create STAC item
+            stac_item = self._create_stac_item(analysis, raster_key, vector_key)
+            stac_item_key = f"stac/items/{analysis_id}/{aoi_id}.json"
+            
+            # Upload STAC item
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=stac_item_key,
+                Body=json.dumps(stac_item, indent=2),
+                ContentType='application/json'
+            )
+            
+            # Update STAC collection to point to this job
+            self._update_stac_collection(analysis_id)
             
             # Set published URLs in the analysis object
-            analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{cog_key}"
-            analysis._published_vector_url = f"s3://{self.bucket_name}/{aoi_key}"
+            analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{raster_key}"
+            analysis._published_vector_url = f"s3://{self.bucket_name}/{vector_key}"
             
             # Clean up temporary COG file
             os.unlink(cog_path)
@@ -117,6 +141,108 @@ class S3AnalysisPublisher(AnalysisPublisher):
             
         except Exception as e:
             raise RuntimeError(f"Failed to publish analysis to S3: {str(e)}")
+    
+    def _create_stac_item(self, analysis: DNBRAnalysis, raster_key: str, vector_key: str) -> dict:
+        """
+        Create STAC item for the analysis.
+        
+        Args:
+            analysis: Analysis object
+            raster_key: S3 key for raster file
+            vector_key: S3 key for vector file
+            
+        Returns:
+            STAC item dictionary
+        """
+        aoi_id = analysis.get_aoi_id()
+        analysis_id = analysis.get_id()
+        fire_metadata = analysis.fire_metadata
+        
+        # Read geometry from source vector file
+        import geopandas as gpd
+        gdf = gpd.read_file(analysis.source_vector_url)
+        geometry = gdf.iloc[0].geometry.__geo_interface__
+        
+        stac_item = {
+            "id": f"{aoi_id}_{analysis_id}",
+            "type": "Feature",
+            "collection": "fires",
+            "geometry": geometry,
+            "properties": {
+                "aoi_id": aoi_id,
+                "job_id": analysis_id,
+                "fire_date": fire_metadata.get_date(),
+                "provider": fire_metadata.get_provider(),
+                "analysis_method": analysis.generator_type,
+                "datetime": analysis.get_created_at(),
+                "status": analysis.status
+            },
+            "assets": {
+                "dnbr": {
+                    "href": f"s3://{self.bucket_name}/{raster_key}",
+                    "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+                    "title": "dNBR Analysis Result"
+                },
+                "aoi": {
+                    "href": f"s3://{self.bucket_name}/{vector_key}",
+                    "type": "application/geo+json",
+                    "title": "Area of Interest Boundary"
+                }
+            },
+            "links": [
+                {
+                    "rel": "collection",
+                    "href": "/stac/collections/fires"
+                },
+                {
+                    "rel": "self",
+                    "href": f"/stac/items/{analysis_id}/{aoi_id}"
+                }
+            ]
+        }
+        
+        return stac_item
+    
+    def _update_stac_collection(self, job_id: str):
+        """
+        Update STAC collection to point to the current job.
+        
+        Args:
+            job_id: Job ID to set as current
+        """
+        collection = {
+            "id": "fires",
+            "title": "Fire Severity Analysis",
+            "description": "dNBR analysis results for fire AOIs",
+            "type": "Collection",
+            "stac_version": "1.0.0",
+            "extent": {
+                "spatial": {
+                    "bbox": [138.0, -35.0, 141.0, -32.0]  # South Australia
+                },
+                "temporal": {
+                    "interval": [["2019-01-01", "2024-12-31"]]
+                }
+            },
+            "links": [
+                {
+                    "rel": "items",
+                    "href": f"/stac/collections/fires/items/{job_id}"
+                },
+                {
+                    "rel": "self",
+                    "href": "/stac/collections/fires"
+                }
+            ]
+        }
+        
+        # Upload STAC collection
+        self.s3_client.put_object(
+            Bucket=self.bucket_name,
+            Key="stac/collections/fires.json",
+            Body=json.dumps(collection, indent=2),
+            ContentType='application/json'
+        )
     
     def _generate_cog_from_file(self, input_path: str) -> str:
         """

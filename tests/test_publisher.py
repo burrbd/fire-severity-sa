@@ -69,13 +69,14 @@ class TestS3AnalysisPublisher:
         
         # Assert
         assert len(urls) == 2
-        assert urls[0].startswith("s3://test-bucket/201912036/")
-        assert urls[0].endswith("/dnbr.cog.tif")
-        assert urls[1].startswith("s3://test-bucket/201912036/")
-        assert urls[1].endswith("/aoi.geojson")
+        assert urls[0].startswith("s3://test-bucket/jobs/")
+        assert urls[0].endswith("/201912036_dnbr.cog.tif")
+        assert urls[1].startswith("s3://test-bucket/jobs/")
+        assert urls[1].endswith("/201912036_aoi.geojson")
         
-        # Verify S3 uploads were called
+        # Verify S3 uploads were called (2 file uploads + 1 STAC item + 1 STAC collection)
         assert self.mock_s3_client.upload_file.call_count == 2
+        assert self.mock_s3_client.put_object.call_count == 2
         
         # Verify analysis was updated with published URLs
         assert self.completed_analysis.published_dnbr_raster_url is not None
