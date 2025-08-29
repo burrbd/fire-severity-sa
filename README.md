@@ -13,48 +13,51 @@ Generate and publish fire severity maps for South Australian wildfires using a c
 
 ## 🏗️ Architecture Overview
 
-### **Clean Separation of Concerns:**
+### **Job-Based Polymorphic Architecture:**
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Generators    │    │   Analysis       │    │   Publishers    │
-│                 │    │   Service        │    │                 │
-│ • Kick off      │───▶│ • Store/Retrieve │───▶│ • Upload to S3  │
-│   analysis      │    │   metadata       │    │ • Generate PNG  │
-│ • Return        │    │ • Database ops   │    │ • Extract bounds│
-│   Analysis obj  │    │ • Single DB      │    │ • Make available│
-│                 │    │   access point   │    │   for maps      │
+│   Job Classes   │    │   Job Service    │    │   Publishers    │
+│                 │    │                  │    │                 │
+│ • DummyJob      │───▶│ • Store/Retrieve │───▶│ • Upload to S3  │
+│ • GEEJob        │    │   jobs           │    │ • Generate STAC │
+│ • execute()     │    │ • CRUD ops       │    │ • Make available│
+│   returns Job   │    │ • Single DB      │    │   for maps      │
+│                 │    │   access point   │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
 ### **Core Components:**
 
-1. **`DNBRAnalysis`** - Concrete metadata class (ULID, status, raster_urls, generator_type)
-2. **`AnalysisService`** - Single point of database access (DynamoDB) with dependency injection
-3. **`AnalysisPublisher`** - Handles S3 uploads and data processing
-4. **Generators** - Kick off analysis and create metadata objects (dummy, GEE)
+1. **`DNBRAnalysisJob`** - Batch job containing multiple analyses with single ULID
+2. **`Job` (Abstract)** - Polymorphic job classes (DummyJob, GEEJob) with execute() method
+3. **`JobService`** - Simple CRUD operations for job storage (DynamoDB)
+4. **`DNBRAnalysis`** - Individual analysis objects within a job
+5. **`S3AnalysisPublisher`** - Handles S3 uploads with STAC structure
 
 ### **Data Flow:**
-1. **Generate** → Creates analysis metadata with generator type
-2. **Store** → Saves to DynamoDB via AnalysisService
-3. **Publish** → Uploads data to S3 via AnalysisPublisher
+1. **Execute Job** → Creates job with multiple analyses for batch processing
+2. **Store Job** → Saves to DynamoDB via JobService
+3. **Publish Job** → Uploads all analyses to S3 with STAC metadata
 4. **Map** → Reads from S3 URLs for visualization
 
 ## 📍 Current Implementation Status
 
 ### ✅ **Completed:**
-- **Clean Architecture** - Single `DNBRAnalysis` class with generator type metadata
-- **DynamoDB Integration** - Full implementation with dependency injection
-- **Generator Simplification** - Dummy and GEE generators return clean Analysis objects
-- **100% Test Coverage** - Core business logic fully tested
+- **Job-Based Architecture** - Polymorphic job classes with batch processing
+- **DynamoDB Integration** - JobService with simple CRUD operations
+- **S3 Integration** - Complete STAC-compliant publishing with job-based structure
+- **GitHub Actions** - Automated job execution and publishing workflows
+- **89% Test Coverage** - Comprehensive behavior-focused testing
 
 ### 🔄 **In Progress:**
-- **S3 Integration** - AnalysisPublisher ready for implementation
+- **STAC API Lambda** - Serverless API for querying published data
 
 ### 📋 **Next Steps:**
-1. **S3 Integration** - Complete AnalysisPublisher implementation
-2. **GEE Integration** - Replace dummy generator with real GEE analysis
-3. **Production Deployment** - Move from development to production environment
+1. **STAC API Lambda** - Create serverless API for data discovery
+2. **TiTiler Integration** - Dynamic COG tiling for map visualization
+3. **Frontend Development** - Simple web interface for data exploration
+4. **GEE Integration** - Replace dummy generator with real GEE analysis
 
 ## 🚀 Quick Start
 
@@ -72,30 +75,31 @@ aws configure
 
 # Create DynamoDB table (if not exists)
 aws dynamodb create-table \
-  --table-name fire-severity-analyses-dev \
-  --attribute-definitions AttributeName=analysis_id,AttributeType=S \
-  --key-schema AttributeName=analysis_id,KeyType=HASH \
+  --table-name fire-severity-jobs-dev \
+  --attribute-definitions AttributeName=job_id,AttributeType=S \
+  --key-schema AttributeName=job_id,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \
   --region ap-southeast-2
 ```
 
-### Run Analysis (Current - DynamoDB)
+### Run Analysis (Job-Based)
 ```bash
-# Generate analysis (creates metadata, stores in DynamoDB)
-python scripts/generate_dnbr_analysis.py data/fire.geojson dummy
+# Execute job (creates job with multiple analyses, stores in DynamoDB)
+python scripts/dnbr_analysis_job.py data/dummy_data/fires.geojson dummy
 
-# Download data and generate map (retrieves from DynamoDB)
-python scripts/download_dnbr_analysis.py --analysis-id <ANALYSIS_ID>
+# Publish job to S3 (retrieves from DynamoDB, uploads to S3 with STAC)
+python scripts/publish_dnbr_job.py --job-id <JOB_ID>
 ```
 
-### View Results
-Open `docs/outputs/fire_severity_map.html` in your browser.
+### GitHub Actions Workflow
+1. **Execute dNBR Job** → Creates job with analyses
+2. **Publish dNBR Job** → Publishes to S3 with STAC structure
 
 ## 🧪 Testing
 
 ### Run Tests
 ```bash
-python -m pytest tests/ -v --cov=dnbr --cov=scripts
+python -m pytest tests/ -v --cov=dnbr --cov-report=term-missing
 ```
 
 ### Pre-commit Hooks
@@ -110,38 +114,39 @@ Tests run automatically before commits. Set up with:
 fire-severity-sa/
 ├── dnbr/                   # Core domain logic
 │   ├── __init__.py
-│   ├── analysis.py         # DNBRAnalysis concrete class (metadata + generator_type)
-│   ├── analysis_service.py # DynamoDB operations (complete implementation)
-│   ├── publisher.py        # S3 publishing (shell)
-│   ├── dummy_generator.py  # Dummy analysis generator
-│   ├── gee_generator.py    # GEE analysis generator
-│   └── generators.py       # Factory functions
+│   ├── analysis.py         # DNBRAnalysis class (individual analyses)
+│   ├── job.py              # DNBRAnalysisJob class (batch jobs)
+│   ├── jobs.py             # Polymorphic Job classes (DummyJob, GEEJob)
+│   ├── job_service.py      # DynamoDB operations for jobs
+│   ├── publisher.py        # S3 publishing with STAC structure
+│   └── fire_metadata.py    # Fire metadata extraction
 ├── scripts/                # GitHub Actions entry points
-│   ├── generate_dnbr_analysis.py    # Analysis generation + DynamoDB storage
-│   ├── download_dnbr_analysis.py    # Data download & map generation
-│   ├── generate_map_shell.py        # Map generation
-│   ├── generate_dnbr_utils.py       # Raster processing utilities
-│   └── generate_leaflet_utils.py    # Map generation utilities
+│   ├── dnbr_analysis_job.py    # Job execution (replaces generate_dnbr_analysis.py)
+│   ├── publish_dnbr_job.py     # Job publishing (replaces publish_dnbr_analysis.py)
+│   ├── generate_map_shell.py   # Map generation
+│   └── generate_dnbr_utils.py  # Raster processing utilities
 ├── data/                   # Input data
-│   ├── fire.geojson        # Area of interest
-│   └── dummy/              # Test data
-│       └── fire_severity.tif
+│   └── dummy_data/         # Test data
+│       ├── fires.geojson   # Multiple AOIs (2 features)
+│       ├── fire.geojson    # Single AOI (1 feature)
+│       └── raw_dnbr.tif    # Dummy raster data
 ├── docs/                   # Documentation and outputs
 │   ├── index.html         # GitHub Pages site
 │   └── outputs/           # Generated outputs
-│       ├── fire_severity_overlay.png
-│       └── fire_severity_map.html
 ├── .github/               # GitHub Actions
 │   └── workflows/
-│       ├── generate-pages.yml
-│       ├── generate_dnbr_analysis.yml
-│       └── download_dnbr_analysis.yml
+│       ├── execute_dnbr_job.yml      # Job execution workflow
+│       ├── publish_dnbr_job.yml      # Job publishing workflow
+│       ├── generate_map_shell.yml    # Map generation
+│       └── tests.yml                 # Test suite
 ├── tests/                 # Test suite
-│   ├── test_analysis_metadata.py
-│   ├── test_analysis_service.py
-│   ├── test_publisher.py
-│   ├── test_generators.py
-│   └── test_scripts.py
+│   ├── test_analysis.py              # DNBRAnalysis tests
+│   ├── test_job_execution.py         # Job execution tests
+│   ├── test_job_service_integration.py # JobService integration tests
+│   ├── test_job_status.py            # Job status tests
+│   ├── test_publisher.py             # Publisher tests
+│   ├── test_s3_integration.py        # S3 integration tests
+│   └── test_scripts.py               # Script tests
 ├── requirements.txt       # Python dependencies
 ├── pytest.ini           # Test configuration
 └── README.md
@@ -150,37 +155,74 @@ fire-severity-sa/
 ## 🔄 Development Workflow
 
 ### **Current Architecture:**
-1. **Analysis Generation** → Creates metadata, stores in DynamoDB
-2. **Data Download** → Retrieves from DynamoDB, generates maps
-3. **Map Generation** → Creates Leaflet visualization
+1. **Job Execution** → Creates job with multiple analyses, stores in DynamoDB
+2. **Job Publishing** → Retrieves job, uploads analyses to S3 with STAC
+3. **Map Generation** → Reads from S3 URLs for visualization
 
-### **Target Architecture:**
-1. **Analysis Generation** → Creates metadata, stores in DynamoDB
-2. **Data Publishing** → Uploads to S3, updates metadata
-3. **Map Generation** → Reads from S3 URLs
+### **S3 Structure:**
+```
+s3://bucket/
+├── jobs/
+│   └── {job_id}/
+│       ├── {aoi_id}/
+│       │   ├── {aoi_id}_dnbr.cog.tif
+│       │   └── {aoi_id}_aoi.geojson
+│       └── {aoi_id2}/
+│           ├── {aoi_id2}_dnbr.cog.tif
+│           └── {aoi_id2}_aoi.geojson
+└── stac/
+    ├── collections/
+    │   └── fires.json
+    └── items/
+        └── {job_id}/
+            ├── {aoi_id}.json
+            └── {aoi_id2}.json
+```
 
 ## 🔧 Technical Details
 
 ### **DynamoDB Schema:**
 ```json
 {
-  "analysis_id": "string (ULID)",
-  "status": "string (PENDING|COMPLETED|FAILED)",
+  "job_id": "string (ULID)",
   "generator_type": "string (dummy|gee)",
-  "raster_urls": ["string"],
   "created_at": "string (ISO timestamp)",
-  "updated_at": "string (ISO timestamp)"
+  "updated_at": "string (ISO timestamp)",
+  "analysis_count": "number",
+  "analyses": "string (JSON array of analysis data)"
 }
 ```
+
+### **Job Types:**
+- **`DummyJob`** - Synchronous test/development job with immediate completion
+- **`GEEJob`** - Asynchronous Google Earth Engine job with pending status
+
+### **Analysis Status:**
+- **`PENDING`** - Analysis created, waiting for processing (GEE)
+- **`COMPLETED`** - Analysis finished, ready for publishing
+- **`FAILED`** - Analysis failed, needs investigation
 
 ### **AWS Authentication:**
 - GitHub Actions uses AWS credentials from repository secrets
 - Local development uses AWS CLI configuration
 - IAM user requires DynamoDB and S3 permissions
 
-### **Generator Types:**
-- **`dummy`** - Test/development analysis with no real processing
-- **`gee`** - Google Earth Engine analysis (placeholder for real implementation)
+## 🚀 Next Steps
+
+### **Immediate:**
+1. **STAC API Lambda** - Serverless API for data discovery
+2. **TiTiler Integration** - Dynamic COG tiling for map visualization
+3. **Simple Frontend** - Web interface for data exploration
+
+### **Medium Term:**
+1. **GEE Integration** - Real Google Earth Engine analysis
+2. **Production Deployment** - Move from development to production
+3. **Monitoring & Alerting** - Job status monitoring and notifications
+
+### **Long Term:**
+1. **Multi-Provider Support** - Support for different data providers
+2. **Advanced Analytics** - Additional fire severity metrics
+3. **Real-time Processing** - Near real-time fire severity mapping
 
 ## 📝 License
 
