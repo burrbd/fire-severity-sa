@@ -34,9 +34,12 @@ jobs:
         aws-region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}
     
     - name: Publish dNBR job to S3
+      env:
+        AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+        AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}
       run: |
         echo "🔧 Using job ID: ${{ inputs.job_id }}"
-        echo "☁️ Using S3 bucket: ${{ vars.AWS_S3_BUCKET_NAME }}"
+        echo "☁️ Using S3 bucket: ${{ secrets.AWS_S3_BUCKET_NAME }}"
         echo "🌍 Using AWS region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}"
         
         # Publish data to S3
@@ -47,7 +50,7 @@ jobs:
       run: |
         echo "✅ Publishing completed successfully!"
         echo "📊 Job ID: ${{ inputs.job_id }}"
-        echo "☁️ S3 Bucket: ${{ vars.AWS_S3_BUCKET_NAME }}"
+        echo "☁️ S3 Bucket: ${{ secrets.AWS_S3_BUCKET_NAME }}"
         echo "🌍 Region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}"
         echo ""
         echo "💡 The job data has been published to S3 and the database has been updated with the S3 URLs."
