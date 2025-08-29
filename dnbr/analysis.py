@@ -12,15 +12,17 @@ from .fire_metadata import FireMetadata
 class DNBRAnalysis:
     """Metadata and data for a dNBR analysis result."""
     
-    def __init__(self, generator_type: str = "unknown", fire_metadata: FireMetadata = None):
+    def __init__(self, generator_type: str = "unknown", fire_metadata: FireMetadata = None, job_id: str = None):
         """
         Initialize a dNBR analysis.
         
         Args:
             generator_type: Type of generator used ("dummy", "gee", etc.)
             fire_metadata: Fire metadata object
+            job_id: Optional job ID (if part of a batch job)
         """
         self._id = str(ulid.ULID())
+        self._job_id = job_id  # New: job_id for batch processing
         self._generator_type = generator_type
         self._fire_metadata = fire_metadata
         self._status = "PENDING"
@@ -82,6 +84,10 @@ class DNBRAnalysis:
         """Get the unique analysis ID."""
         return self._id
     
+    def get_job_id(self) -> Optional[str]:
+        """Get the job ID if this analysis is part of a batch job."""
+        return self._job_id
+    
     def get_status(self) -> str:
         """Get the current status of the analysis."""
         return self._status
@@ -108,6 +114,7 @@ class DNBRAnalysis:
         import json
         return json.dumps({
             "id": self._id,
+            "job_id": self._job_id,
             "generator_type": self._generator_type,
             "fire_metadata": self._fire_metadata.to_dict() if self._fire_metadata else None,
             "status": self._status,
@@ -133,7 +140,8 @@ class DNBRAnalysis:
         
         analysis = cls(
             generator_type=data.get("generator_type", "unknown"),
-            fire_metadata=fire_metadata
+            fire_metadata=fire_metadata,
+            job_id=data.get("job_id")
         )
         
         # Override the generated ID with the stored one

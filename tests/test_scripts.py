@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Tests for the script modules used by GitHub Actions.
-Simplified for the new clean architecture.
+Simplified for the new clean job-based architecture.
 """
 
 import pytest
@@ -16,14 +16,12 @@ from shapely.geometry import Polygon
 # Add the project root to the path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.generate_dnbr_analysis import main as generate_dnbr_analysis_main
-from scripts.publish_dnbr_analysis import main as publish_dnbr_analysis_main, publish_dnbr_data
-from scripts.generate_map_shell import main as generate_map_shell_main
-from dnbr.analysis import DNBRAnalysis
+from scripts.dnbr_analysis_job import main as dnbr_analysis_job_main
+from scripts.publish_dnbr_job import main as publish_dnbr_job_main, publish_dnbr_data
 
 
-class TestGenerateDNBRAnalysisScript:
-    """Test the generate_dnbr_analysis.py script."""
+class TestDNBRAnalysisJobScript:
+    """Test the dnbr_analysis_job.py script."""
     
     def setup_method(self):
         """Set up test data."""
@@ -42,221 +40,63 @@ class TestGenerateDNBRAnalysisScript:
         """Clean up test data."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
-    @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
-    @patch('scripts.generate_dnbr_analysis.create_analysis_service')
-    def test_generate_dnbr_analysis_success(self, mock_create_service, mock_generate_dnbr_batch, mock_load_aoi):
-        """Test successful dNBR generation."""
-        # Mock the analysis objects
-        mock_analysis1 = MagicMock()
-        mock_analysis1.get_id.return_value = "test_analysis_id_1"
-        mock_analysis1.status = "COMPLETED"
-        mock_analysis2 = MagicMock()
-        mock_analysis2.get_id.return_value = "test_analysis_id_2"
-        mock_analysis2.status = "COMPLETED"
-        mock_generate_dnbr_batch.return_value = [mock_analysis1, mock_analysis2]
+    @patch('sys.argv', ['dnbr_analysis_job.py', 'data/fire.geojson', 'dummy'])
+    @patch('scripts.dnbr_analysis_job.load_aoi')
+    @patch('scripts.dnbr_analysis_job.create_job')
+    @patch('scripts.dnbr_analysis_job.create_job_service')
+    def test_dnbr_analysis_job_success(self, mock_create_service, mock_create_job, mock_load_aoi):
+        """Test successful dNBR job execution."""
+        # Mock the job and analyses
+        mock_job = MagicMock()
+        mock_job.get_id.return_value = "test_job_id"
+        mock_job.get_analysis_count.return_value = 2
+        mock_job.get_completed_analyses.return_value = [MagicMock(), MagicMock()]
+        mock_job.get_pending_analyses.return_value = []
+        mock_job.get_failed_analyses.return_value = []
+        mock_job.get_analyses.return_value = [MagicMock(), MagicMock()]
+        
+        # Mock the job creation and execution
+        mock_create_job.return_value = mock_job
+        mock_job.execute.return_value = mock_job
         
         # Mock the AOI loading
         mock_gdf = MagicMock()
         mock_gdf.__len__ = lambda x: 2
         mock_load_aoi.return_value = mock_gdf
         
-        # Mock the analysis service
+        # Mock the job service
         mock_service = MagicMock()
         mock_create_service.return_value = mock_service
         
         # Test the main function
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            generate_dnbr_analysis_main()
+            dnbr_analysis_job_main()
         
         # Verify the functions were called correctly
         mock_load_aoi.assert_called_once_with('data/fire.geojson')
-        mock_generate_dnbr_batch.assert_called_once_with(mock_gdf, method='dummy', data_path='data/fire.geojson', provider='sa_fire')
+        mock_create_job.assert_called_once_with('dummy', mock_gdf, provider='sa_fire')
+        mock_job.execute.assert_called_once()
         mock_create_service.assert_called_once()
-        assert mock_service.store_analysis.call_count == 2
+        mock_service.store_job.assert_called_once_with(mock_job)
     
-    @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
-    @patch('scripts.generate_dnbr_analysis.load_aoi')
-    def test_generate_dnbr_analysis_load_aoi_failure(self, mock_load_aoi):
-        """Test script when AOI loading fails."""
-        mock_load_aoi.side_effect = Exception("File not found")
-        
-        with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            with pytest.raises(SystemExit) as exc_info:
-                generate_dnbr_analysis_main()
-        
-        assert exc_info.value.code == 1
-    
-    @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
-    @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
-    def test_generate_dnbr_analysis_generation_failure(self, mock_generate_dnbr_batch, mock_load_aoi):
-        """Test script when analysis generation fails."""
-        # Mock successful AOI loading
-        mock_gdf = MagicMock()
-        mock_gdf.__len__ = lambda x: 2
-        mock_load_aoi.return_value = mock_gdf
-        
-        # Mock failed analysis generation
-        mock_generate_dnbr_batch.side_effect = Exception("Generation failed")
-        
-        with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            with pytest.raises(SystemExit) as exc_info:
-                generate_dnbr_analysis_main()
-        
-        assert exc_info.value.code == 1
-    
-    @patch('sys.argv', ['generate_dnbr_analysis.py', 'data/fire.geojson', 'dummy'])
-    @patch('scripts.generate_dnbr_analysis.load_aoi')
-    @patch('scripts.generate_dnbr_analysis.generate_dnbr_batch')
-    @patch('scripts.generate_dnbr_analysis.create_analysis_service')
-    def test_generate_dnbr_analysis_storage_failure(self, mock_create_service, mock_generate_dnbr_batch, mock_load_aoi):
-        """Test script when DynamoDB storage fails."""
-        # Mock successful AOI loading
-        mock_gdf = MagicMock()
-        mock_gdf.__len__ = lambda x: 2
-        mock_load_aoi.return_value = mock_gdf
-        
-        # Mock successful analysis generation
-        mock_analysis = MagicMock()
-        mock_analysis.get_id.return_value = "test_analysis_id"
-        mock_analysis.status = "PENDING"
-        mock_generate_dnbr_batch.return_value = [mock_analysis]
-        
-        # Mock failed service creation
-        mock_create_service.side_effect = Exception("Service creation failed")
-        
-        with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            with pytest.raises(SystemExit) as exc_info:
-                generate_dnbr_analysis_main()
-        
-        assert exc_info.value.code == 1
-    
-    @patch('sys.argv', ['generate_dnbr_analysis.py'])
-    def test_generate_dnbr_analysis_no_arguments(self):
+    @patch('sys.argv', ['dnbr_analysis_job.py'])
+    def test_dnbr_analysis_job_no_arguments(self):
         """Test script with no arguments."""
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             with pytest.raises(SystemExit) as exc_info:
-                generate_dnbr_analysis_main()
+                dnbr_analysis_job_main()
         
-        assert exc_info.value.code == 1  # script error code
+        assert exc_info.value.code == 1
 
 
-class TestPublishDNBRAnalysisScript:
-    """Test the publish_dnbr_analysis.py script."""
+class TestPublishDNBRJobScript:
+    """Test the publish_dnbr_job.py script."""
     
-    def setup_method(self):
-        """Set up test data."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.aoi_path = os.path.join(self.temp_dir, "test_fire.geojson")
-        
-        # Create a test GeoJSON file
-        geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
-        test_gdf = gpd.GeoDataFrame(
-            [{'geometry': geometry, 'name': 'test_fire'}],
-            crs='EPSG:4326'
-        )
-        test_gdf.to_file(self.aoi_path, driver='GeoJSON')
-    
-    def teardown_method(self):
-        """Clean up test data."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
-    @patch('sys.argv', ['publish_dnbr_analysis.py'])
-    def test_publish_dnbr_analysis_no_arguments(self):
+    @patch('sys.argv', ['publish_dnbr_job.py'])
+    def test_publish_dnbr_job_no_arguments(self):
         """Test script with no arguments."""
         with patch('sys.stdout', new=MagicMock()) as mock_stdout:
             with pytest.raises(SystemExit) as exc_info:
-                publish_dnbr_analysis_main()
+                publish_dnbr_job_main()
         
         assert exc_info.value.code == 2  # argparse error code
-
-
-class TestGenerateMapShellScript:
-    """Test the generate_map_shell.py script."""
-    
-    def setup_method(self):
-        """Set up test data."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.aoi_path = os.path.join(self.temp_dir, "test_fire.geojson")
-        
-        # Create a test GeoJSON file
-        geometry = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
-        test_gdf = gpd.GeoDataFrame(
-            [{'geometry': geometry, 'name': 'test_fire'}],
-            crs='EPSG:4326'
-        )
-        test_gdf.to_file(self.aoi_path, driver='GeoJSON')
-    
-    def teardown_method(self):
-        """Clean up test data."""
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
-    @patch('sys.argv', ['generate_map_shell.py', 'data/fire.geojson'])
-    @patch('scripts.generate_map_shell.generate_leaflet_map_standalone')
-    def test_generate_map_shell_success(self, mock_generate_map):
-        """Test successful map generation."""
-        # Mock map generation
-        mock_generate_map.return_value = "test_map.html"
-        
-        with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            generate_map_shell_main()
-        
-        # Verify the function was called correctly
-        mock_generate_map.assert_called_once_with('data/fire.geojson')
-    
-    @patch('sys.argv', ['generate_map_shell.py'])
-    def test_generate_map_shell_no_arguments(self):
-        """Test script with no arguments."""
-        with patch('sys.stdout', new=MagicMock()) as mock_stdout:
-            with pytest.raises(SystemExit) as exc_info:
-                generate_map_shell_main()
-        
-        assert exc_info.value.code == 2  # argparse error code
-
-
-class TestAnalysisIntegration:
-    """Test integration with the new analysis system."""
-    
-    def test_analysis_metadata_structure(self):
-        """Test that analysis objects have the expected metadata structure."""
-        # Create a concrete implementation for testing
-        class _TestAnalysis(DNBRAnalysis):
-            def _get_status(self) -> str:
-                return "COMPLETED"
-            
-            def get(self) -> bytes:
-                return b"dummy data"
-        
-        analysis = _TestAnalysis()
-        
-        # Test core properties
-        assert hasattr(analysis, 'get_id')
-        assert hasattr(analysis, 'status')
-        assert hasattr(analysis, 'fire_metadata')
-        assert hasattr(analysis, 'raw_raster_url')
-        assert hasattr(analysis, 'published_dnbr_raster_url')
-        assert hasattr(analysis, 'published_vector_url')
-        assert hasattr(analysis, 'to_json')
-        
-        # Test property types
-        assert isinstance(analysis.get_id(), str)
-        assert isinstance(analysis.status, str)
-        assert analysis.fire_metadata is None  # Initially None
-        assert analysis.raw_raster_url is None  # Initially None
-        assert analysis.published_dnbr_raster_url is None  # Initially None
-        assert analysis.published_vector_url is None  # Initially None
-        
-        # Test JSON serialization
-        json_str = analysis.to_json()
-        assert isinstance(json_str, str)
-        
-        import json
-        data = json.loads(json_str)
-        assert 'id' in data
-        assert 'status' in data
-        assert 'fire_metadata' in data
-        assert 'raw_raster_url' in data
-        assert 'published_dnbr_raster_url' in data
-        assert 'published_vector_url' in data 

@@ -88,7 +88,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
         
         try:
             aoi_id = analysis.get_aoi_id()
-            analysis_id = analysis.get_id()
+            job_id = analysis.get_job_id() or analysis.get_id()  # Use job_id if available, fallback to analysis_id
             fire_metadata = analysis.fire_metadata
             
             # Generate filenames using metadata
@@ -102,7 +102,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
             # s3://bucket/stac/items/{job_id}/{aoi_id}.json
             
             # Upload raw data to jobs directory
-            job_prefix = f"jobs/{analysis_id}/{aoi_id}"
+            job_prefix = f"jobs/{job_id}/{aoi_id}"
             raster_key = f"{job_prefix}/{raster_filename}"
             vector_key = f"{job_prefix}/{vector_filename}"
             
@@ -111,7 +111,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
             
             # Create STAC item
             stac_item = self._create_stac_item(analysis, raster_key, vector_key)
-            stac_item_key = f"stac/items/{analysis_id}/{aoi_id}.json"
+            stac_item_key = f"stac/items/{job_id}/{aoi_id}.json"
             
             # Upload STAC item
             self.s3_client.put_object(
@@ -122,7 +122,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
             )
             
             # Update STAC collection to point to this job
-            self._update_stac_collection(analysis_id)
+            self._update_stac_collection(job_id)
             
             # Set published URLs in the analysis object
             analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{raster_key}"
@@ -155,7 +155,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
             STAC item dictionary
         """
         aoi_id = analysis.get_aoi_id()
-        analysis_id = analysis.get_id()
+        job_id = analysis.get_job_id() or analysis.get_id()  # Use job_id if available, fallback to analysis_id
         fire_metadata = analysis.fire_metadata
         
         # Read geometry from source vector file
@@ -164,13 +164,13 @@ class S3AnalysisPublisher(AnalysisPublisher):
         geometry = gdf.iloc[0].geometry.__geo_interface__
         
         stac_item = {
-            "id": f"{aoi_id}_{analysis_id}",
+            "id": f"{aoi_id}_{job_id}",
             "type": "Feature",
             "collection": "fires",
             "geometry": geometry,
             "properties": {
                 "aoi_id": aoi_id,
-                "job_id": analysis_id,
+                "job_id": job_id,
                 "fire_date": fire_metadata.get_date(),
                 "provider": fire_metadata.get_provider(),
                 "analysis_method": analysis.generator_type,
@@ -196,7 +196,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
                 },
                 {
                     "rel": "self",
-                    "href": f"/stac/items/{analysis_id}/{aoi_id}"
+                    "href": f"/stac/items/{job_id}/{aoi_id}"
                 }
             ]
         }

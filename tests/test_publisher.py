@@ -9,6 +9,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from dnbr.publisher import S3AnalysisPublisher, AnalysisPublisher, create_s3_publisher
 from dnbr.analysis import DNBRAnalysis
 from dnbr.fire_metadata import SAFireMetadata
+import json
 
 
 class TestS3AnalysisPublisher:
@@ -181,21 +182,148 @@ class TestS3PublisherFactory:
 
 
 class TestPublisherIntegration:
-    """Integration tests for publisher."""
+    """Integration tests for publisher with analysis metadata."""
     
     def test_publisher_with_analysis_metadata(self):
-        """Test that publisher works with analysis metadata."""
-        # Create a concrete implementation for testing
-        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
+        """Test publisher integration with analysis metadata."""
+        # Create analysis with fire metadata
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         analysis = DNBRAnalysis(fire_metadata=fire_metadata)
         analysis.set_status("COMPLETED")
         analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         analysis._source_vector_url = "data/dummy_data/fire.geojson"
         
-        publisher = S3AnalysisPublisher("test-bucket")
+        # Mock S3 client
+        mock_s3_client = Mock()
+        mock_s3_client.upload_file.return_value = None
+        mock_s3_client.put_object.return_value = None
         
-        # This would require actual S3 credentials to test fully
-        # For now, just verify the analysis has the required metadata
-        assert analysis.get_aoi_id() == "bushfire_20191230"
-        assert analysis.raw_raster_url == "data/dummy_data/raw_dnbr.tif"
-        assert analysis.status == "COMPLETED" 
+        # Create publisher
+        publisher = S3AnalysisPublisher("test-bucket", s3_client=mock_s3_client)
+        
+        # Mock COG generation and file operations
+        with patch.object(S3AnalysisPublisher, '_generate_cog_from_file') as mock_cog, \
+             patch('os.unlink') as mock_unlink:
+            mock_cog.return_value = "temp_cog.tif"
+            
+            # Publish analysis
+            urls = publisher.publish_analysis(analysis)
+            
+            # Verify behavior: should return S3 URLs
+            assert len(urls) == 2
+            assert all(url.startswith("s3://test-bucket/") for url in urls)
+    
+    def test_publisher_uses_job_id_for_s3_structure(self):
+        """Test that publisher uses job_id for S3 structure when available."""
+        # Create analysis with job_id
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata, job_id="JOB123")
+        analysis.set_status("COMPLETED")
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
+        analysis._source_vector_url = "data/dummy_data/fire.geojson"
+        
+        # Mock S3 client
+        mock_s3_client = Mock()
+        mock_s3_client.upload_file.return_value = None
+        mock_s3_client.put_object.return_value = None
+        
+        # Create publisher
+        publisher = S3AnalysisPublisher("test-bucket", s3_client=mock_s3_client)
+        
+        # Mock COG generation and file operations
+        with patch.object(S3AnalysisPublisher, '_generate_cog_from_file') as mock_cog, \
+             patch('os.unlink') as mock_unlink:
+            mock_cog.return_value = "temp_cog.tif"
+            
+            # Publish analysis
+            urls = publisher.publish_analysis(analysis)
+            
+            # Verify behavior: S3 keys should use job_id, not analysis_id
+            assert len(urls) == 2
+            
+            # Check that S3 uploads used job_id in the key
+            upload_calls = mock_s3_client.upload_file.call_args_list
+            assert len(upload_calls) == 2
+            
+            # Verify S3 keys contain job_id
+            for call in upload_calls:
+                s3_key = call[0][2]  # Third argument is the key for upload_file
+                assert "JOB123" in s3_key, f"S3 key should contain job_id: {s3_key}"
+                assert "jobs/JOB123/" in s3_key, f"S3 key should use job structure: {s3_key}"
+    
+    def test_publisher_creates_stac_structure_with_job_id(self):
+        """Test that publisher creates STAC structure organized by job_id."""
+        # Create analysis with job_id
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata, job_id="JOB123")
+        analysis.set_status("COMPLETED")
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
+        analysis._source_vector_url = "data/dummy_data/fire.geojson"
+        
+        # Mock S3 client
+        mock_s3_client = Mock()
+        mock_s3_client.upload_file.return_value = None
+        mock_s3_client.put_object.return_value = None
+        
+        # Create publisher
+        publisher = S3AnalysisPublisher("test-bucket", s3_client=mock_s3_client)
+        
+        # Mock COG generation and file operations
+        with patch.object(S3AnalysisPublisher, '_generate_cog_from_file') as mock_cog, \
+             patch('os.unlink') as mock_unlink:
+            mock_cog.return_value = "temp_cog.tif"
+            
+            # Publish analysis
+            publisher.publish_analysis(analysis)
+            
+            # Verify behavior: STAC items should be organized by job_id
+            put_object_calls = mock_s3_client.put_object.call_args_list
+            assert len(put_object_calls) == 2  # STAC item + STAC collection
+            
+            # Check STAC item key uses job_id
+            stac_item_call = put_object_calls[0]
+            stac_item_key = stac_item_call[1]['Key']  # Key parameter
+            assert "stac/items/JOB123/" in stac_item_key, f"STAC item should use job_id: {stac_item_key}"
+            
+            # Check STAC collection points to job_id
+            stac_collection_call = put_object_calls[1]
+            stac_collection_body = json.loads(stac_collection_call[1]['Body'])
+            items_link = stac_collection_body['links'][0]['href']
+            assert "JOB123" in items_link, f"STAC collection should point to job_id: {items_link}"
+    
+    def test_publisher_fallback_to_analysis_id_when_no_job_id(self):
+        """Test that publisher falls back to analysis_id when job_id is not available."""
+        # Create analysis without job_id
+        fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
+        analysis = DNBRAnalysis(fire_metadata=fire_metadata)  # No job_id
+        analysis.set_status("COMPLETED")
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
+        analysis._source_vector_url = "data/dummy_data/fire.geojson"
+        
+        # Mock S3 client
+        mock_s3_client = Mock()
+        mock_s3_client.upload_file.return_value = None
+        mock_s3_client.put_object.return_value = None
+        
+        # Create publisher
+        publisher = S3AnalysisPublisher("test-bucket", s3_client=mock_s3_client)
+        
+        # Mock COG generation and file operations
+        with patch.object(S3AnalysisPublisher, '_generate_cog_from_file') as mock_cog, \
+             patch('os.unlink') as mock_unlink:
+            mock_cog.return_value = "temp_cog.tif"
+            
+            # Publish analysis
+            urls = publisher.publish_analysis(analysis)
+            
+            # Verify behavior: should fall back to analysis_id
+            assert len(urls) == 2
+            
+            # Check that S3 uploads used analysis_id in the key
+            upload_calls = mock_s3_client.upload_file.call_args_list
+            analysis_id = analysis.get_id()
+            
+            for call in upload_calls:
+                s3_key = call[0][2]  # Third argument is the key for upload_file
+                assert analysis_id in s3_key, f"S3 key should contain analysis_id: {s3_key}"
+                assert f"jobs/{analysis_id}/" in s3_key, f"S3 key should use analysis_id structure: {s3_key}" 
