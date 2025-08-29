@@ -23,7 +23,7 @@ class TestDNBRAnalysis:
         assert analysis.get_fire_date() is None
         assert analysis.get_provider() is None
         assert analysis.status == "PENDING"
-        assert analysis.raw_raster_path is None
+        assert analysis.raw_raster_url is None
         assert analysis.published_dnbr_raster_url is None
         assert analysis.published_vector_url is None
     
@@ -64,16 +64,16 @@ class TestDNBRAnalysis:
         assert analysis.get_created_at() is not None
         assert len(analysis.get_created_at()) > 0
     
-    def test_raw_raster_path_property(self):
-        """Test raw_raster_path property access."""
+    def test_raw_raster_url_property(self):
+        """Test raw_raster_url property access."""
         analysis = DNBRAnalysis()
         
         # Initially None
-        assert analysis.raw_raster_path is None
+        assert analysis.raw_raster_url is None
         
         # Set and get
-        analysis._raw_raster_path = "test/path.tif"
-        assert analysis.raw_raster_path == "test/path.tif"
+        analysis._raw_raster_url = "test/path.tif"
+        assert analysis.raw_raster_url == "test/path.tif"
     
     def test_published_urls_properties(self):
         """Test published URL properties."""
@@ -98,7 +98,7 @@ class TestDNBRAnalysis:
     def test_to_json_without_metadata(self):
         """Test JSON serialization without fire metadata."""
         analysis = DNBRAnalysis(generator_type="dummy")
-        analysis._raw_raster_path = "test/path.tif"
+        analysis._raw_raster_url = "test/path.tif"
         
         json_str = analysis.to_json()
         data = json.loads(json_str)
@@ -106,7 +106,7 @@ class TestDNBRAnalysis:
         assert data["generator_type"] == "dummy"
         assert data["fire_metadata"] is None
         assert data["status"] == "PENDING"
-        assert data["raw_raster_path"] == "test/path.tif"
+        assert data["raw_raster_url"] == "test/path.tif"
         assert data["published_dnbr_raster_url"] is None
         assert data["published_vector_url"] is None
         assert "id" in data
@@ -116,7 +116,7 @@ class TestDNBRAnalysis:
         """Test JSON serialization with fire metadata."""
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
         analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "test/path.tif"
+        analysis._raw_raster_url = "test/path.tif"
         analysis._published_dnbr_raster_url = "s3://bucket/file.tif"
         analysis._published_vector_url = "s3://bucket/file.geojson"
         
@@ -127,14 +127,14 @@ class TestDNBRAnalysis:
         assert data["fire_metadata"]["provider"] == "sa_fire"
         assert data["fire_metadata"]["aoi_id"] == "bushfire_20191230"
         assert data["status"] == "PENDING"
-        assert data["raw_raster_path"] == "test/path.tif"
+        assert data["raw_raster_url"] == "test/path.tif"
         assert data["published_dnbr_raster_url"] == "s3://bucket/file.tif"
         assert data["published_vector_url"] == "s3://bucket/file.geojson"
     
     def test_from_json_without_metadata(self):
         """Test JSON deserialization without fire metadata."""
         original_analysis = DNBRAnalysis(generator_type="dummy")
-        original_analysis._raw_raster_path = "test/path.tif"
+        original_analysis._raw_raster_url = "test/path.tif"
         original_analysis.set_status("COMPLETED")
         
         json_str = original_analysis.to_json()
@@ -144,7 +144,7 @@ class TestDNBRAnalysis:
         assert reconstructed_analysis.fire_metadata is None
         assert reconstructed_analysis.get_id() == original_analysis.get_id()
         assert reconstructed_analysis.status == original_analysis.status
-        assert reconstructed_analysis.raw_raster_path == original_analysis.raw_raster_path
+        assert reconstructed_analysis.raw_raster_url == original_analysis.raw_raster_url
         assert reconstructed_analysis.published_dnbr_raster_url is None
         assert reconstructed_analysis.published_vector_url is None
     
@@ -152,7 +152,7 @@ class TestDNBRAnalysis:
         """Test JSON deserialization with fire metadata."""
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
         original_analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        original_analysis._raw_raster_path = "test/path.tif"
+        original_analysis._raw_raster_url = "test/path.tif"
         original_analysis._published_dnbr_raster_url = "s3://bucket/file.tif"
         original_analysis._published_vector_url = "s3://bucket/file.geojson"
         
@@ -164,7 +164,7 @@ class TestDNBRAnalysis:
         assert reconstructed_analysis.get_fire_date() == original_analysis.get_fire_date()
         assert reconstructed_analysis.get_provider() == original_analysis.get_provider()
         assert reconstructed_analysis.get_id() == original_analysis.get_id()
-        assert reconstructed_analysis.raw_raster_path == original_analysis.raw_raster_path
+        assert reconstructed_analysis.raw_raster_url == original_analysis.raw_raster_url
         assert reconstructed_analysis.published_dnbr_raster_url == original_analysis.published_dnbr_raster_url
         assert reconstructed_analysis.published_vector_url == original_analysis.published_vector_url
     
@@ -180,7 +180,7 @@ class TestDNBRAnalysis:
             },
             "status": "PENDING",
             "created_at": "2023-01-01T00:00:00",
-            "raw_raster_path": None,
+            "raw_raster_url": None,
             "published_dnbr_raster_url": None,
             "published_vector_url": None
         }
@@ -204,7 +204,7 @@ class TestDNBRAnalysis:
         assert analysis.generator_type == "dummy"
         assert analysis.fire_metadata is None
         assert analysis.status == "PENDING"
-        assert analysis.raw_raster_path is None
+        assert analysis.raw_raster_url is None
     
     def test_fire_metadata_property_access(self):
         """Test accessing fire metadata properties."""
@@ -254,7 +254,7 @@ class TestDNBRAnalysisIntegration:
         
         # Modify analysis
         analysis.set_status("COMPLETED")
-        analysis._raw_raster_path = "test/path.tif"
+        analysis._raw_raster_url = "test/path.tif"
         analysis._published_dnbr_raster_url = "s3://bucket/file.tif"
         analysis._published_vector_url = "s3://bucket/file.geojson"
         
@@ -271,7 +271,7 @@ class TestDNBRAnalysisIntegration:
         assert reconstructed_analysis.get_provider() == analysis.get_provider()
         assert reconstructed_analysis.get_id() == analysis.get_id()
         assert reconstructed_analysis.status == analysis.status
-        assert reconstructed_analysis.raw_raster_path == analysis.raw_raster_path
+        assert reconstructed_analysis.raw_raster_url == analysis.raw_raster_url
         assert reconstructed_analysis.published_dnbr_raster_url == analysis.published_dnbr_raster_url
         assert reconstructed_analysis.published_vector_url == analysis.published_vector_url
     

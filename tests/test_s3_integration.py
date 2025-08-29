@@ -20,7 +20,7 @@ class TestS3PublishingBehavior:
         # Arrange
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.geojson', delete=False) as f:
             f.write('{"type": "FeatureCollection", "features": []}')
@@ -38,7 +38,7 @@ class TestS3PublishingBehavior:
                 
                 # For now, just verify the analysis has the right data for publishing
                 assert analysis.get_aoi_id() == "201912036"
-                assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"
+                assert analysis.raw_raster_url == "data/dummy_data/raw_dnbr.tif"
                 assert analysis.get_id() is not None
                 
         finally:
@@ -49,7 +49,7 @@ class TestS3PublishingBehavior:
         # Arrange
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         
         # Act & Assert
         aoi_id = analysis.get_aoi_id()
@@ -66,20 +66,20 @@ class TestS3PublishingBehavior:
         # Arrange
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "nonexistent/file.tif"
+        analysis._raw_raster_url = "nonexistent/file.tif"
         
         # Act & Assert
         with pytest.raises(FileNotFoundError):
             # This would be the actual publisher call
             # publisher.publish_analysis(analysis, geojson_path)
-            if not os.path.exists(analysis.raw_raster_path):
-                raise FileNotFoundError(f"Raster file not found: {analysis.raw_raster_path}")
+            if not os.path.exists(analysis.raw_raster_url):
+                raise FileNotFoundError(f"Raster file not found: {analysis.raw_raster_url}")
     
     def test_publisher_handles_missing_fire_metadata(self):
         """Test that publisher raises appropriate error when fire metadata is missing."""
         # Arrange
         analysis = DNBRAnalysis(generator_type="dummy")  # No fire metadata
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         
         # Act & Assert
         with pytest.raises(ValueError, match="No aoi_id found"):
@@ -97,7 +97,7 @@ class TestS3IntegrationWorkflow:
         # Arrange
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"INCIDENTNU": "201912036"})
         analysis = DNBRAnalysis(generator_type="dummy", fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.geojson', delete=False) as f:
             f.write('{"type": "FeatureCollection", "features": []}')
@@ -116,8 +116,8 @@ class TestS3IntegrationWorkflow:
                 # Verify the analysis has all required data
                 assert aoi_id == "201912036"
                 assert analysis_id is not None
-                assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"
-                assert os.path.exists(analysis.raw_raster_path)
+                assert analysis.raw_raster_url == "data/dummy_data/raw_dnbr.tif"
+                assert os.path.exists(analysis.raw_raster_url)
                 assert os.path.exists(geojson_path)
                 
                 # Verify S3 keys would be created correctly

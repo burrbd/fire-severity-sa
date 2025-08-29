@@ -35,11 +35,11 @@ class TestAnalysisMetadata:
         # Initially None, but can be set
         assert self.analysis.fire_metadata is None
     
-    def test_analysis_has_raw_raster_path_property(self):
-        """Test that analysis has raw_raster_path property."""
-        assert hasattr(self.analysis, 'raw_raster_path')
+    def test_analysis_has_raw_raster_url_property(self):
+        """Test that analysis has raw_raster_url property."""
+        assert hasattr(self.analysis, 'raw_raster_url')
         # Initially None, but can be set
-        assert self.analysis.raw_raster_path is None
+        assert self.analysis.raw_raster_url is None
     
     def test_analysis_has_published_urls_properties(self):
         """Test that analysis has published URL properties."""
@@ -71,7 +71,7 @@ class TestAnalysisMetadata:
         assert 'id' in data
         assert 'status' in data
         assert 'fire_metadata' in data
-        assert 'raw_raster_path' in data
+        assert 'raw_raster_url' in data
         assert 'published_dnbr_raster_url' in data
         assert 'published_vector_url' in data
         
@@ -79,7 +79,7 @@ class TestAnalysisMetadata:
         assert isinstance(data['id'], str)
         assert isinstance(data['status'], str)
         assert data['fire_metadata'] is None  # Initially None
-        assert data['raw_raster_path'] is None  # Initially None
+        assert data['raw_raster_url'] is None  # Initially None
         assert data['published_dnbr_raster_url'] is None  # Initially None
         assert data['published_vector_url'] is None  # Initially None
     

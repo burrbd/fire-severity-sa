@@ -44,7 +44,11 @@ class DummyDNBRGenerator(DNBRGenerator):
         
         # Set the path to the existing dummy raster file
         # The publisher will handle reading this file and converting to COG
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
+        
+        # Set the source vector URL to the input data path
+        if data_path:
+            analysis._source_vector_url = data_path
         
         # Set status to COMPLETED since dummy data is always available synchronously
         analysis.set_status("COMPLETED")

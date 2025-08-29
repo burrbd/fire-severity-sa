@@ -53,13 +53,12 @@ class S3AnalysisPublisher(AnalysisPublisher):
         self.region = region
         self.s3_client = s3_client or boto3.client('s3', region_name=region)
     
-    def publish_analysis(self, analysis: DNBRAnalysis, geojson_path: str) -> List[str]:
+    def publish_analysis(self, analysis: DNBRAnalysis) -> List[str]:
         """
         Publish analysis to S3.
         
         Args:
-            analysis: Analysis object
-            geojson_path: Path to GeoJSON file
+            analysis: Analysis object containing source vector URL and raw raster URL
             
         Returns:
             List of S3 URLs for published files
@@ -71,17 +70,20 @@ class S3AnalysisPublisher(AnalysisPublisher):
         if not analysis.get_aoi_id():
             raise ValueError("No aoi_id found in analysis fire metadata")
         
-        if not analysis.raw_raster_path:
-            raise ValueError("No raw raster path found in analysis")
+        if not analysis.raw_raster_url:
+            raise ValueError("No raw raster URL found in analysis")
         
-        if not os.path.exists(analysis.raw_raster_path):
-            raise FileNotFoundError(f"Raw raster file not found: {analysis.raw_raster_path}")
+        if not analysis.source_vector_url:
+            raise ValueError("No source vector URL found in analysis")
         
-        if not os.path.exists(geojson_path):
-            raise FileNotFoundError(f"GeoJSON file not found: {geojson_path}")
+        if not os.path.exists(analysis.raw_raster_url):
+            raise FileNotFoundError(f"Raw raster file not found: {analysis.raw_raster_url}")
+        
+        if not os.path.exists(analysis.source_vector_url):
+            raise FileNotFoundError(f"Source vector file not found: {analysis.source_vector_url}")
         
         # Generate COG from raw raster
-        cog_path = self._generate_cog_from_file(analysis.raw_raster_path)
+        cog_path = self._generate_cog_from_file(analysis.raw_raster_url)
         
         try:
             aoi_id = analysis.get_aoi_id()
@@ -96,7 +98,7 @@ class S3AnalysisPublisher(AnalysisPublisher):
             
             # Upload GeoJSON to S3
             aoi_key = f"{s3_prefix}/aoi.geojson"
-            self.s3_client.upload_file(geojson_path, self.bucket_name, aoi_key)
+            self.s3_client.upload_file(analysis.source_vector_url, self.bucket_name, aoi_key)
             
             # Set published URLs in the analysis object
             analysis._published_dnbr_raster_url = f"s3://{self.bucket_name}/{cog_key}"

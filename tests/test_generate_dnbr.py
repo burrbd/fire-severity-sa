@@ -169,7 +169,7 @@ class TestAnalysisMetadata:
         assert hasattr(analysis, 'get_id')
         assert hasattr(analysis, 'status')
         assert hasattr(analysis, 'fire_metadata')
-        assert hasattr(analysis, 'raw_raster_path')
+        assert hasattr(analysis, 'raw_raster_url')
         assert hasattr(analysis, 'published_dnbr_raster_url')
         assert hasattr(analysis, 'published_vector_url')
         assert hasattr(analysis, 'to_json')
@@ -178,7 +178,7 @@ class TestAnalysisMetadata:
         assert isinstance(analysis.get_id(), str)
         assert isinstance(analysis.status, str)
         assert analysis.fire_metadata is None  # Initially None
-        assert analysis.raw_raster_path is None  # Initially None
+        assert analysis.raw_raster_url is None  # Initially None
         assert analysis.published_dnbr_raster_url is None  # Initially None
         assert analysis.published_vector_url is None  # Initially None
         
@@ -191,6 +191,6 @@ class TestAnalysisMetadata:
         assert 'id' in data
         assert 'status' in data
         assert 'fire_metadata' in data
-        assert 'raw_raster_path' in data
+        assert 'raw_raster_url' in data
         assert 'published_dnbr_raster_url' in data
         assert 'published_vector_url' in data 

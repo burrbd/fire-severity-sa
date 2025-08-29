@@ -12,13 +12,12 @@ from dnbr.analysis_service import create_analysis_service
 from dnbr.publisher import create_s3_publisher
 
 
-def publish_dnbr_data(analysis_id: str, aoi_path: str = "data/dummy_data/fire.geojson"):
+def publish_dnbr_data(analysis_id: str):
     """
     Publish dNBR data for a specific analysis to S3.
     
     Args:
         analysis_id: Analysis ID to publish data for
-        aoi_path: Path to AOI file
     """
     print(f"☁️ Publishing dNBR data for analysis: {analysis_id}")
     
@@ -41,8 +40,12 @@ def publish_dnbr_data(analysis_id: str, aoi_path: str = "data/dummy_data/fire.ge
         sys.exit(1)
     
     # Check if analysis has required data
-    if not analysis.raw_raster_path:
-        print(f"❌ Analysis missing raw raster path")
+    if not analysis.raw_raster_url:
+        print(f"❌ Analysis missing raw raster URL")
+        sys.exit(1)
+    
+    if not analysis.source_vector_url:
+        print(f"❌ Analysis missing source vector URL")
         sys.exit(1)
     
     if not analysis.get_aoi_id():
@@ -64,7 +67,7 @@ def publish_dnbr_data(analysis_id: str, aoi_path: str = "data/dummy_data/fire.ge
         
         # Publish analysis to S3
         print(f"📤 Publishing to S3 bucket: {s3_bucket}")
-        s3_urls = publisher.publish_analysis(analysis, aoi_path)
+        s3_urls = publisher.publish_analysis(analysis)
         
         print(f"✅ Analysis published successfully to S3:")
         for url in s3_urls:
@@ -87,11 +90,9 @@ def main():
     """Main function for publishing dNBR data."""
     parser = argparse.ArgumentParser(description="Publish dNBR analysis data to S3")
     parser.add_argument("--analysis-id", required=True, help="Analysis ID to publish")
-    parser.add_argument("--aoi-path", default="data/dummy_data/fire.geojson", 
-                       help="Path to AOI file")
     args = parser.parse_args()
     
-    publish_dnbr_data(args.analysis_id, args.aoi_path)
+    publish_dnbr_data(args.analysis_id)
 
 
 if __name__ == "__main__":

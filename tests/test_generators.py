@@ -39,7 +39,7 @@ class TestGenerators:
         assert isinstance(analysis, DNBRAnalysis)
         assert analysis.get_id() is not None
         assert analysis.status == "COMPLETED"  # Dummy generator is synchronous
-        assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
+        assert analysis.raw_raster_url == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
     
     def test_create_dnbr_generator_invalid(self):
         """Test creating generator with invalid method."""
@@ -63,7 +63,7 @@ class TestGenerators:
         assert isinstance(analysis, DNBRAnalysis)
         assert analysis.get_id() is not None
         assert analysis.status == "COMPLETED"  # Dummy generator is synchronous
-        assert analysis.raw_raster_path == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
+        assert analysis.raw_raster_url == "data/dummy_data/raw_dnbr.tif"  # Dummy generator sets this
     
     def test_create_dnbr_generator_gee(self):
         """Test creating GEE generator."""
@@ -91,5 +91,5 @@ class TestGenerators:
         assert isinstance(analysis, DNBRAnalysis)
         assert analysis.get_id() is not None
         assert analysis.status == "PENDING"
-        # GEE generator doesn't set raw_raster_path initially
-        assert analysis.raw_raster_path is None 
+        # GEE generator doesn't set raw_raster_url initially
+        assert analysis.raw_raster_url is None 

@@ -25,7 +25,8 @@ class DNBRAnalysis:
         self._fire_metadata = fire_metadata
         self._status = "PENDING"
         self._created_at = datetime.utcnow().isoformat()
-        self._raw_raster_path: Optional[str] = None
+        self._raw_raster_url: Optional[str] = None
+        self._source_vector_url: Optional[str] = None
         self._published_dnbr_raster_url: Optional[str] = None
         self._published_vector_url: Optional[str] = None
     
@@ -58,14 +59,19 @@ class DNBRAnalysis:
         return None
     
     @property
-    def raw_raster_path(self) -> Optional[str]:
-        """Get the path to the raw raster file containing dNBR results."""
-        return self._raw_raster_path
+    def raw_raster_url(self) -> Optional[str]:
+        """Get the URL/path to the raw raster file containing dNBR results."""
+        return self._raw_raster_url
     
     @property
     def published_dnbr_raster_url(self) -> Optional[str]:
         """Get the published URL to the dNBR raster COG file."""
         return self._published_dnbr_raster_url
+    
+    @property
+    def source_vector_url(self) -> Optional[str]:
+        """Get the source URL/path to the input vector GeoJSON file."""
+        return self._source_vector_url
     
     @property
     def published_vector_url(self) -> Optional[str]:
@@ -106,7 +112,8 @@ class DNBRAnalysis:
             "fire_metadata": self._fire_metadata.to_dict() if self._fire_metadata else None,
             "status": self._status,
             "created_at": self._created_at,
-            "raw_raster_path": self._raw_raster_path,
+            "raw_raster_url": self._raw_raster_url,
+            "source_vector_url": self._source_vector_url,
             "published_dnbr_raster_url": self._published_dnbr_raster_url,
             "published_vector_url": self._published_vector_url
         })
@@ -133,7 +140,8 @@ class DNBRAnalysis:
         analysis._id = data.get("id", analysis._id)
         analysis._status = data.get("status", "PENDING")
         analysis._created_at = data.get("created_at", analysis._created_at)
-        analysis._raw_raster_path = data.get("raw_raster_path")
+        analysis._raw_raster_url = data.get("raw_raster_url")
+        analysis._source_vector_url = data.get("source_vector_url")
         analysis._published_dnbr_raster_url = data.get("published_dnbr_raster_url")
         analysis._published_vector_url = data.get("published_vector_url")
         

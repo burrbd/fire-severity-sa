@@ -7,11 +7,6 @@ on:
         description: 'Analysis ID from previous action'
         required: true
         type: string
-      aoi_path:
-        description: 'Path to AOI GeoJSON file (default: data/dummy_data/fire.geojson)'
-        required: false
-        default: 'data/dummy_data/fire.geojson'
-        type: string
 
 jobs:
   publish-dnbr-data:
@@ -41,14 +36,12 @@ jobs:
     - name: Publish dNBR data to S3
       run: |
         echo "🔧 Using analysis ID: ${{ inputs.analysis_id }}"
-        echo "📁 Using AOI path: ${{ inputs.aoi_path }}"
         echo "☁️ Using S3 bucket: ${{ vars.AWS_S3_BUCKET_NAME }}"
         echo "🌍 Using AWS region: ${{ vars.AWS_DEFAULT_REGION || 'ap-southeast-2' }}"
         
         # Publish data to S3
         python scripts/publish_dnbr_analysis.py \
-          --analysis-id ${{ inputs.analysis_id }} \
-          --aoi-path "${{ inputs.aoi_path }}"
+          --analysis-id ${{ inputs.analysis_id }}
     
     - name: Output analysis information
       run: |

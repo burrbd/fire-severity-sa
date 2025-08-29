@@ -24,7 +24,7 @@ class TestAnalysisService:
         
         # Create a test analysis
         self.test_analysis = DNBRAnalysis()
-        self.test_analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        self.test_analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         self.test_analysis._published_dnbr_raster_url = "s3://test/fire_severity.tif"
         self.test_analysis._published_vector_url = "s3://test/fire.geojson"
     
@@ -42,7 +42,7 @@ class TestAnalysisService:
         
         assert item['analysis_id']['S'] == self.test_analysis.get_id()
         assert item['status']['S'] == self.test_analysis.status
-        assert item['raw_raster_path']['S'] == "data/dummy_data/raw_dnbr.tif"
+        assert item['raw_raster_url']['S'] == "data/dummy_data/raw_dnbr.tif"
         assert item['published_dnbr_raster_url']['S'] == "s3://test/fire_severity.tif"
         assert item['published_vector_url']['S'] == "s3://test/fire.geojson"
         assert 'created_at' in item
@@ -53,7 +53,7 @@ class TestAnalysisService:
         # Create analysis with fire metadata
         fire_metadata = SAFireMetadata("Bushfire", "30/12/2019", {"test": "data"})
         analysis = DNBRAnalysis(fire_metadata=fire_metadata)
-        analysis._raw_raster_path = "data/dummy_data/raw_dnbr.tif"
+        analysis._raw_raster_url = "data/dummy_data/raw_dnbr.tif"
         
         # Act
         self.service.store_analysis(analysis)
@@ -77,7 +77,7 @@ class TestAnalysisService:
             'Item': {
                 'analysis_id': {'S': 'test-id'},
                 'status': {'S': 'COMPLETED'},
-                'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'},
+                'raw_raster_url': {'S': 'data/dummy_data/raw_dnbr.tif'},
                 'published_dnbr_raster_url': {'S': 's3://test/fire_severity.tif'},
                 'published_vector_url': {'S': 's3://test/fire.geojson'}
             }
@@ -90,7 +90,7 @@ class TestAnalysisService:
         # Assert
         assert result is not None
         assert result.get_id() == 'test-id'
-        assert result.raw_raster_path == 'data/dummy_data/raw_dnbr.tif'
+        assert result.raw_raster_url == 'data/dummy_data/raw_dnbr.tif'
         assert result.published_dnbr_raster_url == 's3://test/fire_severity.tif'
         assert result.published_vector_url == 's3://test/fire.geojson'
         
@@ -117,7 +117,7 @@ class TestAnalysisService:
                 'analysis_id': {'S': 'test-id'},
                 'status': {'S': 'COMPLETED'},
                 'fire_metadata': {'S': json.dumps(fire_metadata_dict)},
-                'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'}
+                'raw_raster_url': {'S': 'data/dummy_data/raw_dnbr.tif'}
             }
         }
         self.mock_dynamodb.get_item.return_value = mock_response
@@ -150,11 +150,11 @@ class TestAnalysisService:
             'Items': [
                 {
                     'analysis_id': {'S': 'id1'},
-                    'raw_raster_path': {'S': ''}
+                    'raw_raster_url': {'S': ''}
                 },
                 {
                     'analysis_id': {'S': 'id2'},
-                    'raw_raster_path': {'S': 'data/dummy_data/raw_dnbr.tif'},
+                    'raw_raster_url': {'S': 'data/dummy_data/raw_dnbr.tif'},
                     'published_dnbr_raster_url': {'S': 's3://test/file.tif'}
                 }
             ]
@@ -168,7 +168,7 @@ class TestAnalysisService:
         assert len(result) == 2
         assert result[0].get_id() == 'id1'
         assert result[1].get_id() == 'id2'
-        assert result[1].raw_raster_path == 'data/dummy_data/raw_dnbr.tif'
+        assert result[1].raw_raster_url == 'data/dummy_data/raw_dnbr.tif'
         assert result[1].published_dnbr_raster_url == 's3://test/file.tif'
         
         self.mock_dynamodb.scan.assert_called_once_with(
