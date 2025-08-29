@@ -75,33 +75,9 @@ def main():
         print(f"❌ Failed to store analyses in DynamoDB: {e}")
         sys.exit(1)
     
-    # Step 3: Publish analyses to S3 (if S3 bucket is configured)
-    s3_bucket = os.environ.get('AWS_S3_BUCKET_NAME')
-    if s3_bucket:
-        print(f"☁️ Publishing {len(analyses)} analyses to S3 bucket: {s3_bucket}")
-        try:
-            publisher = create_s3_publisher(
-                bucket_name=s3_bucket,
-                region=os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-2')
-            )
-            
-            published_count = 0
-            for analysis in analyses:
-                try:
-                    s3_urls = publisher.publish_analysis(analysis)
-                    published_count += 1
-                    print(f"   ✅ Published analysis {published_count}/{len(analyses)}: {analysis.get_id()}")
-                    for url in s3_urls:
-                        print(f"      📁 {url}")
-                except Exception as e:
-                    print(f"   ⚠️ Failed to publish analysis {analysis.get_id()}: {e}")
-            
-            print(f"✅ Published {published_count}/{len(analyses)} analyses to S3")
-        except Exception as e:
-            print(f"⚠️ Failed to publish to S3: {e}")
-            print("   Continuing without S3 publishing...")
-    else:
-        print("ℹ️ S3 publishing skipped (AWS_S3_BUCKET_NAME not set)")
+    # Note: Publishing is handled separately by the publish-dnbr-analysis action
+    # This ensures only completed analyses are published (important for async GEE)
+    print("ℹ️ Publishing will be handled by the publish-dnbr-analysis action")
     
     # Output analysis IDs for GitHub Actions
     analysis_ids = [analysis.get_id() for analysis in analyses]
@@ -109,7 +85,7 @@ def main():
     
     print("🎉 dNBR analysis generation completed successfully!")
     print(f"📊 Generated {len(analyses)} analyses for {len(layer_gdf)} AOIs")
-    print("💡 To publish data to S3, run the publish-dnbr-analysis action")
+    print("💡 To publish completed analyses to S3, run the publish-dnbr-analysis action")
 
 
 if __name__ == "__main__":
