@@ -87,7 +87,7 @@ def main():
                 bucket_name=s3_bucket,
                 region=os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-2')
             )
-            s3_urls = publisher.publish_analysis(analysis, aoi_path)
+            s3_urls = publisher.publish_analysis(analysis)
             print(f"✅ Analysis published to S3:")
             for url in s3_urls:
                 print(f"   📁 {url}")
